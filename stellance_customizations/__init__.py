@@ -1,1 +1,7 @@
 __version__ = "0.0.1"
+
+from erpnext.stock.doctype.serial_and_batch_bundle import serial_and_batch_bundle
+from stellance_customizations.overrides.serial_and_batch_bundle import custom_get_available_batches, custom_get_qty_based_available_batches
+
+serial_and_batch_bundle.get_available_batches = custom_get_available_batches
+serial_and_batch_bundle.get_qty_based_available_batches = custom_get_qty_based_available_batches
