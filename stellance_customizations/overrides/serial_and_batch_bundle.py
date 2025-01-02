@@ -6,7 +6,6 @@ from frappe.utils import (
 	flt,
 )
 def custom_get_available_batches(kwargs):
-	frappe.logger("available_batches").exception("+++++")
 	stock_ledger_entry = frappe.qb.DocType("Stock Ledger Entry")
 	batch_ledger = frappe.qb.DocType("Serial and Batch Entry")
 	batch_table = frappe.qb.DocType("Batch")
