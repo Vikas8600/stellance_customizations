@@ -162,14 +162,14 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             fieldname: 'name1',
                                             fieldtype: 'Data',
                                             in_list_view: 1,
-                                            columns: 1
+                                            columns: 2
                                         },
                                         {
                                             label: 'Value',
                                             fieldname: 'value',
                                             fieldtype: 'Float',
                                             in_list_view: 1,
-                                            columns: 1
+                                            columns: 2
                                         },
                                         
                                         {
@@ -177,7 +177,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             fieldname: 'no_of_sets',
                                             fieldtype: 'Int',
                                             in_list_view: 1,
-                                            columns: 1
+                                            columns: 2
                                         },
                                        
                                         {
@@ -188,13 +188,24 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             read_only: 1,
                                             columns: 1
                                         },
-                                        
-                                       {
+                                        {
                                             label: 'Batch No',
+                                            fieldname: 'batch',
+                                            fieldtype: 'Link',
+                                            in_list_view: 1,
+                                            options: "Batch",
+                                            columns: 1,
+                                            filters: {
+                                                item: row.item_code
+                                            }
+                                            
+                                        },
+                                       {
+                                            label: 'Create New Batch',
                                             fieldname: 'batch_no_button',
                                             fieldtype: 'Button',
                                             in_list_view: 1,
-                                            columns: 1,
+                                            columns: 2,
                                             click: function() {
                                                 let batch_dialog = new frappe.ui.Dialog({
                                                     title: 'Add Batch',
@@ -254,16 +265,6 @@ frappe.ui.form.on('Purchase Receipt Item', {
 
                                                 batch_dialog.show();
                                             }
-                                        },
-                                        
-                                        {
-                                            label: 'Batch',
-                                            fieldname: 'batch',
-                                            fieldtype: 'Link',
-                                            in_list_view: 1,
-                                            options: "Batch",
-                                            columns: 1
-                                            
                                         }
                                     ],
                                     
