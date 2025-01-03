@@ -282,7 +282,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                             primary_action_label: 'Submit',
                             primary_action(values) {
                     
-                               
+                                const purchase_order_item = frm.doc.items.find(item => item.item_code === values.item_code);
                                 let selected_row = locals[cdt][cdn];
                                 
                                 // Update the selected row with the first filtered row's data
@@ -301,6 +301,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                     selected_row.rate = selected_row.rate;
                                     selected_row.amount = selected_row.amount;
                                     selected_row.use_serial_batch_fields = selected_row.use_serial_batch_fields || false; 
+                                    selected_row.purchase_order_item = purchase_order_item.purchase_order_item;
                                     frm.refresh_field('items');
                                 }
 
@@ -321,7 +322,8 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             uom: r.message.stock_uom,
                                             rate: selected_row.rate,
                                             amount: selected_row.amount,
-                                            use_serial_batch_fields: selected_row.use_serial_batch_fields || false
+                                            use_serial_batch_fields: selected_row.use_serial_batch_fields || false,
+                                            purchase_order_item: purchase_order_item.purchase_order_item
                                         });
                                         frm.refresh_field('items');
                                     });
