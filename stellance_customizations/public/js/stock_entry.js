@@ -1,10 +1,10 @@
-frappe.ui.form.on('Delivery Note', {
+frappe.ui.form.on('Stock Entry', {
     refresh(frm) {
         // your code here
     }
 })
 
-frappe.ui.form.on('Delivery Note Item', {
+frappe.ui.form.on('Stock Entry Detail', {
     item_code: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
 
@@ -73,10 +73,10 @@ frappe.ui.form.on('Delivery Note Item', {
                                 },
                                 {
                                     label: 'Warehouse',
-                                    fieldname: 'warehouse',
+                                    fieldname: 's_warehouse',
                                     fieldtype: 'Link',
                                     options: 'Warehouse',
-                                    default: row.warehouse
+                                    default: row.s_warehouse
                                 },
 
                                 {
@@ -111,7 +111,7 @@ frappe.ui.form.on('Delivery Note Item', {
                                             name1: pack.name1,
                                             value: pack.value,
                                             no_of_sets: pack.no_of_sets,
-                                            accepted_qty: 0,
+                                            qty: 0,
                                             batch_no: null
                                         }));
                                         dialog.fields_dict.pack_sizes_table.grid.refresh();
@@ -133,14 +133,14 @@ frappe.ui.form.on('Delivery Note Item', {
 
                                         // Update accepted_qty for each row dynamically
                                         table.data.forEach(row => {
-                                            row.accepted_qty = row.no_of_sets * row.value * total_packs;
+                                            row.qty = row.no_of_sets * row.value * total_packs;
                                         });
 
                                         frappe.call({
                                             method: 'erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle.get_auto_data',
                                             args: {
                                                 item_code: row.item_code,
-                                                warehouse: dialog.fields_dict.warehouse.value,
+                                                warehouse: dialog.fields_dict.s_warehouse.value,
                                                 has_serial_no: 0,
                                                 has_batch_no: 1,
                                                 qty: dialog.fields_dict.qty.value,
@@ -176,8 +176,8 @@ frappe.ui.form.on('Delivery Note Item', {
                                     label: 'Pack Sizes',
                                     fieldtype: 'Table',
                                     fieldname: 'pack_sizes_table',
-                                    cannot_add_rows: true, // Disallow adding rows manually
-                                    in_place_edit: true,  // Allow editing values in place
+                                    cannot_add_rows: true, 
+                                    in_place_edit: true,  
                                     fields: [
                                         {
                                             label: 'Name',
@@ -198,8 +198,8 @@ frappe.ui.form.on('Delivery Note Item', {
                                             in_list_view: 1
                                         },
                                         {
-                                            label: 'Accepted Quantity',
-                                            fieldname: 'accepted_qty',
+                                            label: 'Quantity',
+                                            fieldname: 'qty',
                                             fieldtype: 'Float',
                                             in_list_view: 1,
                                             read_only: 1
@@ -219,7 +219,7 @@ frappe.ui.form.on('Delivery Note Item', {
                                         name1: pack.name1,
                                         value: pack.value,
                                         no_of_sets: pack.no_of_sets,
-                                        accepted_qty: 0,
+                                        qty: 0,
                                         batch_no: null  // Initially null, user will select
                                     }))
                                 }
@@ -234,7 +234,7 @@ frappe.ui.form.on('Delivery Note Item', {
                                 if (values.pack_sizes_table && values.pack_sizes_table.length > 0) {
                                     const first_row = values.pack_sizes_table[0];
                                     selected_row.item_code = values.item_code;
-                                    selected_row.warehouse = values.warehouse;
+                                    selected_row.s_warehouse = values.s_warehouse;
                                     selected_row.qty = first_row.value * values.total_packs * first_row.no_of_sets;
                                     selected_row.custom_name = first_row.name1;
                                     selected_row.value = first_row.value;
@@ -254,7 +254,7 @@ frappe.ui.form.on('Delivery Note Item', {
                                         // Add each subsequent row to the child table
                                         let new_row = frm.add_child('items', {
                                             item_code: values.item_code,
-                                            warehouse: values.warehouse,
+                                            s_warehouse: values.s_warehouse,
                                             qty: pack.value * values.total_packs * pack.no_of_sets,
                                             custom_name: pack.name1,
                                             value: pack.value,

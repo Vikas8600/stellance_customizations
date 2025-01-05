@@ -54,10 +54,6 @@ frappe.ui.form.on('Purchase Receipt Item', {
                         let item_data = r.message;
                         let pack_sizes = item_data.custom_item_pack_size || [];
                         
-                
-
-                        
-
                         // Create the dialog
                         let dialog = new frappe.ui.Dialog({
                             title: 'Add Packs',
@@ -137,7 +133,6 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                         table.data.forEach(row => {
                                             row.accepted_qty = row.no_of_sets * row.value * total_packs;
                                         });
-                                        
                                        
                                         table.refresh();
                                     }
@@ -186,7 +181,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             fieldtype: 'Float',
                                             in_list_view: 1,
                                             read_only: 1,
-                                            columns: 1
+                                            columns: 2
                                         },
                                         {
                                             label: 'Batch No',
@@ -194,78 +189,13 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             fieldtype: 'Link',
                                             in_list_view: 1,
                                             options: "Batch",
-                                            columns: 1,
+                                            columns: 2,
                                             filters: {
                                                 item: row.item_code
                                             }
                                             
                                         },
-                                       {
-                                            label: 'Create New Batch',
-                                            fieldname: 'batch_no_button',
-                                            fieldtype: 'Button',
-                                            in_list_view: 1,
-                                            columns: 2,
-                                            click: function() {
-                                                let batch_dialog = new frappe.ui.Dialog({
-                                                    title: 'Add Batch',
-                                                    fields: [
-                                                        {
-                                                            label: 'Batch ID',
-                                                            fieldname: 'batch_code',
-                                                            fieldtype: 'Data',
-                                                            reqd: 1
-                                                        },
-                                                        {
-                                                            label: 'Item Code',
-                                                            fieldname: 'item_code',
-                                                            fieldtype: 'Data',
-                                                            default: row.item_code,
-                                                            read_only: 1
-                                                        },
-                                                        {
-                                                            label: 'Expiry Date',
-                                                            fieldname: 'expiry_date',
-                                                            fieldtype: 'Date'
-                                                        },
-                                                        {
-                                                            label: 'Manufacturing Date',
-                                                            fieldname: 'manufacturing_date',
-                                                            fieldtype: 'Date',
-                                                            reqd: 1
-                                                        },
-                                                    ],
-                                                    primary_action_label: 'Save',
-                                                    primary_action: function(data) {
-                                                        frappe.call({
-                                                            method: 'frappe.client.insert',
-                                                            args: {
-                                                                doc: {
-                                                                    doctype: 'Batch',
-                                                                    batch_id: data.batch_code,
-                                                                    item: data.item_code,
-                                                                    expiry_date: data.expiry_date,
-                                                                    manufacturing_date: data.manufacturing_date
-                                                                }
-                                                            },
-                                                            callback: function(response) {
-                                                                if (response.message) {
-                                                                    row.batch = response.message.name; 
-                                                                    frm.refresh_field('pack_size_table');
-                                                                    frappe.msgprint(__('Batch created successfully: {0}', [response.message.name]));
-                                                                    batch_dialog.hide();
-                                                                }
-                                                            },
-                                                            error: function(err) {
-                                                                frappe.msgprint(__('An error occurred while creating the batch.'));
-                                                            }
-                                                        });
-                                                    }
-                                                });
-
-                                                batch_dialog.show();
-                                            }
-                                        }
+                                        
                                     ],
                                     
                                         
@@ -295,7 +225,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                     selected_row.pack = first_row.name1;
                                     selected_row.value = first_row.value;
                                     selected_row.no_of_sets = first_row.no_of_sets;
-                                    selected_row.batch_no = first_row.batch_no;
+                                    selected_row.batch_no = first_row.batch;
                                     selected_row.item_name = r.message.item_name; 
                                     selected_row.uom = r.message.stock_uom;
                                     selected_row.rate = selected_row.rate;
@@ -317,7 +247,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                             pack: pack.name1,
                                             value: pack.value,
                                             no_of_sets: pack.no_of_sets,
-                                            batch_no: pack.batch_no || '',
+                                            batch_no: pack.batch,
                                             item_name: r.message.item_name,
                                             uom: r.message.stock_uom,
                                             rate: selected_row.rate,
@@ -328,7 +258,21 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                         frm.refresh_field('items');
                                     });
                                 }
+                                const updated_total_quantity = values.pack_sizes_table.reduce((sum, pack) => {
+                                    return sum + (pack.accepted_qty || 0);
+                                }, 0);
+                                const total_qty = frm.doc.total_qty;
 
+                                // Check if updated total quantity is less than total qty
+                                if (updated_total_quantity < total_qty) {
+                                    // Add a new blank row to 'items' child table
+                                    frm.add_child('items', {
+                                        item_code: values.item_code,
+                                        warehouse: values.warehouse,
+                                        qty: 0,  
+                                    });
+                                    frm.refresh_field('items');
+                                }
                                 // Hide the dialog after submission
                                 dialog.hide();
                             }
