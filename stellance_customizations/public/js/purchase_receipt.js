@@ -258,8 +258,8 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                         frm.refresh_field('items');
                                     });
                                 }
-                                const updated_total_quantity = values.pack_sizes_table.reduce((sum, pack) => {
-                                    return sum + (pack.accepted_qty || 0);
+                                const updated_total_quantity = frm.doc.items.reduce((sum, pack) => {
+                                    return sum + (pack.qty || 0);
                                 }, 0);
                                 const total_qty = frm.doc.total_qty;
 
@@ -269,7 +269,7 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                     frm.add_child('items', {
                                         item_code: values.item_code,
                                         warehouse: values.warehouse,
-                                        qty: 0,  
+                                        qty: total_qty-updated_total_quantity,  
                                     });
                                     frm.refresh_field('items');
                                 }
