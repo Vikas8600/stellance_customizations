@@ -269,7 +269,9 @@ frappe.ui.form.on('Purchase Receipt Item', {
                                     frm.add_child('items', {
                                         item_code: values.item_code,
                                         warehouse: values.warehouse,
-                                        qty: total_qty-updated_total_quantity,  
+                                        qty: total_qty-updated_total_quantity, 
+                                        uom: selected_row.uom,
+                                        rate: selected_row.rate, 
                                     });
                                     frm.refresh_field('items');
                                 }
