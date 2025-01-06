@@ -84,7 +84,7 @@ frappe.ui.form.on('Delivery Note Item', {
                                 },
 
                                 {
-                                    label: 'PO Qty(Kg)',
+                                    label: 'SO Qty(Kg)',
                                     fieldname: 'qty',
                                     fieldtype: 'Float',
                                     default: row.qty,
@@ -237,11 +237,15 @@ frappe.ui.form.on('Delivery Note Item', {
                                     selected_row.warehouse = values.warehouse;
                                     selected_row.qty = first_row.value * values.total_packs * first_row.no_of_sets;
                                     selected_row.custom_name = first_row.name1;
+                                    selected_row.pack = first_row.name1;
                                     selected_row.value = first_row.value;
                                     selected_row.no_of_sets = first_row.no_of_sets;
                                     selected_row.batch_no = first_row.batch_no;
+                                    selected_row.against_sales_order = selected_row.against_sales_order;
+                                    selected_row.so_detail = selected_row.so_detail;
                                     selected_row.item_name = r.message.item_name;
-                                    selected_row.uom = r.message.stock_uom;
+                                    selected_row.uom = selected_row.uom;
+                                    selected_row.stock_uom = selected_row.stock_uom;
                                     selected_row.rate = selected_row.rate;
                                     selected_row.amount = selected_row.amount;
                                     selected_row.use_serial_batch_fields = selected_row.use_serial_batch_fields || false;
@@ -257,17 +261,42 @@ frappe.ui.form.on('Delivery Note Item', {
                                             warehouse: values.warehouse,
                                             qty: pack.value * values.total_packs * pack.no_of_sets,
                                             custom_name: pack.name1,
+                                            pack: pack.name1,
                                             value: pack.value,
                                             no_of_sets: pack.no_of_sets,
                                             batch_no: pack.batch_no,
+                                            against_sales_order: selected_row.against_sales_order,
+                                            so_detail: selected_row.so_detail,
                                             item_name: r.message.item_name,
-                                            uom: r.message.stock_uom,
+                                            uom: selected_row.uom,
+                                            stock_uom: selected_row.stock_uom,
                                             rate: selected_row.rate,
                                             amount: selected_row.amount,
                                             use_serial_batch_fields: selected_row.use_serial_batch_fields || false
                                         });
                                         frm.refresh_field('items');
                                     });
+                                }
+                                const updated_total_quantity = frm.doc.items.reduce((sum, pack) => {
+                                    return sum + (pack.qty || 0);
+                                }, 0);
+                                const total_qty = frm.doc.total_qty;
+
+                                // Check if updated total quantity is less than total qty
+                                if (updated_total_quantity < total_qty) {
+                                    // Add a new blank row to 'items' child table
+                                    frm.add_child('items', {
+                                        item_code: values.item_code,
+                                        warehouse: values.warehouse,
+                                        qty: 0,  
+                                        qty: total_qty-updated_total_quantity,
+                                        uom: selected_row.uom,
+                                        stock_uom: selected_row.stock_uom,
+                                        rate: selected_row.rate,
+                                        against_sales_order: selected_row.against_sales_order,
+                                        so_detail: selected_row.so_detail,
+                                    });
+                                    frm.refresh_field('items');
                                 }
 
                                 // Hide the dialog after submission
