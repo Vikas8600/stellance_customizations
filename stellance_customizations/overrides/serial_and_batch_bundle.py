@@ -71,6 +71,7 @@ def custom_get_available_batches(kwargs):
 	return data
 
 def custom_get_qty_based_available_batches(available_batches, qty):
+	return available_batches
 	batches = []
 	for batch in available_batches:
 		if qty <= 0:
