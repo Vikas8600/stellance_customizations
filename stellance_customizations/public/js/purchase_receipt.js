@@ -314,6 +314,12 @@ frappe.ui.form.on('Purchase Receipt', {
             });
             
             dialog.show();
+            frm.doc.items.sort((a, b) => {
+                if (a.item_code < b.item_code) return -1;
+                if (a.item_code > b.item_code) return 1;
+                return 0;
+            });
+            frm.refresh_field('items');
         });
     },
 });
