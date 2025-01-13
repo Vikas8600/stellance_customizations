@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-12-24 10:19:45.745709",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "name1",
+  "value",
+  "no_of_sets",
+  "pack_size"
+ ],
+ "fields": [
+  {
+   "fieldname": "name1",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Name",
+   "options": "Packs"
+  },
+  {
+   "fieldname": "value",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Value"
+  },
+  {
+   "fieldname": "no_of_sets",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "No of Sets"
+  },
+  {
+   "fieldname": "pack_size",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Pack Size"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-01-13 20:55:54.979237",
+ "modified_by": "Administrator",
+ "module": "stellance_customizations",
+ "name": "Item Pack Size",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
