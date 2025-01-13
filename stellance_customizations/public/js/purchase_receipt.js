@@ -1,22 +1,7 @@
 frappe.ui.form.on('Purchase Receipt', {
     refresh: function (frm) {
-        const items_grid = frm.fields_dict.items.grid;
-
-        if (items_grid && !items_grid.custom_button_added) {
-            const $grid_footer = $(items_grid.wrapper).find('.grid-footer');
-
-            const $custom_button = $('<button>')
-                .addClass('btn btn-primary btn-xs btn-action select-packs-btn')
-                .text('Add Packs');
-
-            $grid_footer.find('.grid-add-multiple-rows').after($custom_button);
-
-            items_grid.custom_button_added = true;
-        }
-        
-
-        $(document).on('click', '.select-packs-btn', function () {
-            console.log("Hi");
+        frm.fields_dict["items"].grid.add_custom_button(__('Add Packs'), 
+			function() {
             
             const existing_item_codes = frm.doc.items.map(item => item.item_code);
             let dialog = new frappe.ui.Dialog({
