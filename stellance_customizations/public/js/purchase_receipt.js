@@ -1,22 +1,7 @@
 frappe.ui.form.on('Purchase Receipt', {
     refresh: function (frm) {
-        const items_grid = frm.fields_dict.items.grid;
-
-        if (items_grid && !items_grid.custom_button_added) {
-            const $grid_footer = $(items_grid.wrapper).find('.grid-footer');
-
-            const $custom_button = $('<button>')
-                .addClass('btn btn-primary btn-xs btn-action select-packs-btn')
-                .text('Add Packs');
-
-            $grid_footer.find('.grid-add-multiple-rows').after($custom_button);
-
-            items_grid.custom_button_added = true;
-        }
-        
-
-        $(document).on('click', '.select-packs-btn', function () {
-            console.log("Hi");
+        frm.fields_dict["items"].grid.add_custom_button(__('Add Packs'), 
+			function() {
             
             const existing_item_codes = frm.doc.items.map(item => item.item_code);
             let dialog = new frappe.ui.Dialog({
@@ -40,18 +25,19 @@ frappe.ui.form.on('Purchase Receipt', {
                                 const item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
 
                                 if (item_row) {
-                                    if (!item_row.used_once) {
-                                        dialog.set_value('qty', item_row.qty || 0);
-                                        item_row.used_once = true; 
-                                    } else {
-                                        const updated_total_quantity = frm.doc.items.reduce((sum, pack) => {
-                                            return sum + (pack.qty || 0);
-                                        }, 0);
+                                    dialog.set_value('qty', item_row.qty || 0);
+                                    // if (!item_row.used_once) {
+                                    //     dialog.set_value('qty', item_row.qty || 0);
+                                    //     item_row.used_once = true; 
+                                    // } else {
+                                    //     const updated_total_quantity = frm.doc.items.reduce((sum, pack) => {
+                                    //         return sum + (pack.qty || 0);
+                                    //     }, 0);
                         
-                                        const total_qty = frm.doc.total_qty;
-                                        const remaining_qty = total_qty - updated_total_quantity;
-                                        dialog.set_value('qty', remaining_qty);
-                                    }
+                                    //     const total_qty = frm.doc.total_qty;
+                                    //     const remaining_qty = total_qty - updated_total_quantity;
+                                    //     dialog.set_value('qty', remaining_qty);
+                                    // }
                                 }
 
                                 frappe.call({
@@ -331,5 +317,16 @@ frappe.ui.form.on('Purchase Receipt', {
             dialog.show();
         });
     },
+    validate: function(frm) {
+        // Grouping and sorting items dynamically based on 'item_code'
+        frm.doc.items.sort((a, b) => {
+            if (a.item_code < b.item_code) return -1;
+            if (a.item_code > b.item_code) return 1;
+            return 0;
+        });
+
+        // Refresh the field to reflect changes
+        frm.refresh_field('items');
+    }
 });
 
