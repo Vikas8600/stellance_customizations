@@ -319,14 +319,20 @@ frappe.ui.form.on('Purchase Receipt', {
     },
     validate: function(frm) {
         // Grouping and sorting items dynamically based on 'item_code'
-        frm.doc.items.sort((a, b) => {
-            if (a.item_code < b.item_code) return -1;
-            if (a.item_code > b.item_code) return 1;
-            return 0;
-        });
+        if (frm.doc.items && frm.doc.items.length > 0) {
+            frm.doc.items.sort((a, b) => {
+                if (a.item_code < b.item_code) return -1;
+                if (a.item_code > b.item_code) return 1;
+                return 0;
+            });
+
+            frm.doc.items.forEach((item, index) => {
+                item.idx = index + 1; 
+            });
 
         // Refresh the field to reflect changes
         frm.refresh_field('items');
     }
+} 
 });
 
