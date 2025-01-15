@@ -1,5 +1,12 @@
 frappe.ui.form.on('Purchase Receipt', {
-    refresh: function (frm) {
+	refresh: function (frm) {
+	    if(frm.is_new()){
+	        frm.doc.items.forEach(item => {
+                item.custom_prev_quality = item.qty;  // Direct assignment without index
+                item.qty = 0;
+            });
+            frm.refresh_field('items');
+	    }
         frm.fields_dict["items"].grid.add_custom_button(__('Add Packs'), 
 			function() {
             
@@ -25,7 +32,11 @@ frappe.ui.form.on('Purchase Receipt', {
                                 const item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
 
                                 if (item_row) {
-                                    dialog.set_value('qty', item_row.qty || 0);
+                                        const matching_items = frm.doc.items.filter(item => item.item_code === selected_item_code);
+                                        const total_qty = matching_items.reduce((sum, item) => sum + (item.qty || 0), 0);
+                                        const total_prev_qty = item_row.custom_prev_quality || 0;
+                                        const pending_qty = total_prev_qty - total_qty;
+                                        dialog.set_value('qty', pending_qty || 0)
                                     // if (!item_row.used_once) {
                                     //     dialog.set_value('qty', item_row.qty || 0);
                                     //     item_row.used_once = true; 
@@ -283,7 +294,8 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 custom_name: row.name1,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
-                                                purchase_order_item: purchase_order_item.purchase_order_item
+                                                purchase_order_item: purchase_order_item.purchase_order_item,
+                                                custom_prev_quality: purchase_order_item.custom_prev_quality
                                             });
                                         });
                                     } else {
@@ -299,7 +311,8 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 custom_name: row.name1,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
-                                                purchase_order_item: purchase_order_item.purchase_order_item
+                                                purchase_order_item: purchase_order_item.purchase_order_item,
+                                                custom_prev_quality: purchase_order_item.custom_prev_quality
                                             });
                                         });
                                     }
@@ -318,7 +331,7 @@ frappe.ui.form.on('Purchase Receipt', {
             dialog.show();
         });
     },
-    validate: function(frm) {
+     validate: function(frm) {
         // Grouping and sorting items dynamically based on 'item_code'
         if (frm.doc.items && frm.doc.items.length > 0) {
             frm.doc.items.sort((a, b) => {
@@ -335,5 +348,4 @@ frappe.ui.form.on('Purchase Receipt', {
         frm.refresh_field('items');
     }
 } 
-});
-
+})
