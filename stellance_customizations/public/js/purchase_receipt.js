@@ -110,16 +110,18 @@ frappe.ui.form.on('Purchase Receipt', {
                                 );
                                 table.refresh();
                             } else {
-                                const filtered_data = dialog.pack_sizes.filter(pack => pack.pack_size === selected_dimension);
-                    
-                                dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
-                                    name1: pack.name1, 
-                                    value: pack.value,
-                                    no_of_sets: pack.no_of_sets,
-                                    accepted_qty: 0,
-                                    batch_no: null
-                                }));
-                                table.refresh();
+                                if (dialog.pack_sizes && Array.isArray(dialog.pack_sizes)) {
+                                    const filtered_data = dialog.pack_sizes.filter(pack => pack.pack_size === selected_dimension);
+                        
+                                    dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
+                                        name1: pack.name1, 
+                                        value: pack.value,
+                                        no_of_sets: pack.no_of_sets,
+                                        accepted_qty: 0,
+                                        batch_no: null
+                                    }));
+                                    table.refresh();
+                                }
                             }
                         }
                     },
@@ -261,14 +263,13 @@ frappe.ui.form.on('Purchase Receipt', {
                                 let existing_item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
                 
                                 if (existing_item_row) {
-                                    if (!existing_item_row.updated) {
+                                    if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
                                         const first_row = batch_rows[0];
                                         existing_item_row.qty = first_row.accepted_qty;
                                         existing_item_row.custom_name = first_row.name1;
                                         existing_item_row.batch_no = first_row.batch_id;
                                         existing_item_row.rate = item_rate;
                                         existing_item_row.purchase_order_item = purchase_order_item.purchase_order_item
-                                        existing_item_row.updated = true;
                 
                                         batch_rows.slice(1).forEach(row => {
                                             frm.add_child('items', {
