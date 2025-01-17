@@ -220,6 +220,7 @@ frappe.ui.form.on('Purchase Receipt', {
                 primary_action_label: 'Submit',
                 primary_action(values) {
                     const batch_rows = values.pack_sizes_table;
+                    const total_packs = values.total_packs; 
                     if (!batch_rows || batch_rows.length === 0) {
                                     frappe.msgprint(__('No data available to create batches.'));
                                     return;
@@ -280,6 +281,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                         existing_item_row.custom_name = first_row.name1;
                                         existing_item_row.batch_no = first_row.batch_id;
                                         existing_item_row.rate = item_rate;
+                                        existing_item_row.custom_total_packs = total_packs;
                                         existing_item_row.purchase_order_item = purchase_order_item.purchase_order_item
                 
                                         batch_rows.slice(1).forEach(row => {
@@ -294,6 +296,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 custom_name: row.name1,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
+                                                custom_total_packs: total_packs,
                                                 purchase_order_item: purchase_order_item.purchase_order_item,
                                                 custom_prev_quality: purchase_order_item.custom_prev_quality
                                             });
@@ -311,6 +314,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 custom_name: row.name1,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
+                                                custom_total_packs: total_packs,
                                                 purchase_order_item: purchase_order_item.purchase_order_item,
                                                 custom_prev_quality: purchase_order_item.custom_prev_quality
                                             });
