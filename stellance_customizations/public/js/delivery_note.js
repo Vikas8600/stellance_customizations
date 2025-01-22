@@ -98,13 +98,13 @@ frappe.ui.form.on('Delivery Note Item', {
                                 },
 
                                 {
-                                    label: 'Set Dimensions',
-                                    fieldname: 'set_dimensions',
+                                    label: 'Pack Size',
+                                    fieldname: 'pack_size',
                                     fieldtype: 'Select',
-                                    options: [...new Set(pack_sizes.map(pack => pack.set_dimensions).filter(Boolean))],
+                                    options: [...new Set(pack_sizes.map(pack => pack.pack_size).filter(Boolean))],
                                     onchange: function () {
                                         const selected_dimension = this.get_value();
-                                        const filtered_data = pack_sizes.filter(pack => pack.set_dimensions === selected_dimension);
+                                        const filtered_data = pack_sizes.filter(pack => pack.pack_size === selected_dimension);
 
                                         // Update the table data with the filtered rows
                                         dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
@@ -309,7 +309,7 @@ frappe.ui.form.on('Delivery Note Item', {
                             'overflow-x': 'auto',
                             'max-width': '100%'
                         });
-                        dialog.fields_dict.set_dimensions.df.onchange.call(dialog.fields_dict.set_dimensions);
+                        dialog.fields_dict.pack_size.df.onchange.call(dialog.fields_dict.pack_size);
 
 
                         dialog.show();
