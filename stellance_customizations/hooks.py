@@ -1,5 +1,5 @@
 app_name = "stellance_customizations"
-app_title = "stellance_customizations"
+app_title = "Stellance Customizations"
 app_publisher = "chinmay@hybrowlabs.com"
 app_description = "stellance_customizations"
 app_email = "chinmay@hybrowlabs.com"
