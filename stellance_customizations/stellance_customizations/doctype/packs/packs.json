@@ -1,24 +1,24 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:name1",
+ "autoname": "field:item_name",
  "creation": "2025-01-02 14:02:02.688392",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "name1"
+  "item_name"
  ],
  "fields": [
   {
-   "fieldname": "name1",
+   "fieldname": "item_name",
    "fieldtype": "Data",
-   "label": "Name",
+   "label": "Item Name",
    "unique": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-02 14:12:38.241054",
+ "modified": "2025-01-27 15:27:05.465152",
  "modified_by": "Administrator",
  "module": "stellance_customizations",
  "name": "Packs",

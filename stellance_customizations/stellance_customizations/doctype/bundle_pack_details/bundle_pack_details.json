@@ -6,25 +6,13 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "name1",
-  "value",
+  "item_name",
+  "pack_split",
   "no_of_sets",
-  "pack_size"
+  "bundle_size",
+  "part_wise_qty"
  ],
  "fields": [
-  {
-   "fieldname": "name1",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Name",
-   "options": "Packs"
-  },
-  {
-   "fieldname": "value",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Value"
-  },
   {
    "fieldname": "no_of_sets",
    "fieldtype": "Int",
@@ -32,19 +20,38 @@
    "label": "No of Sets"
   },
   {
-   "fieldname": "pack_size",
+   "fieldname": "part_wise_qty",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Pack Size"
+   "label": "Part Wise Qty"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "options": "Packs"
+  },
+  {
+   "fieldname": "pack_split",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Pack Split"
+  },
+  {
+   "fieldname": "bundle_size",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bundle Size"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-01-13 20:55:54.979237",
+ "modified": "2025-01-27 15:25:18.741394",
  "modified_by": "Administrator",
  "module": "stellance_customizations",
- "name": "Item Pack Size",
+ "name": "Bundle Pack Details",
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",

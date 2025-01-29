@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class ItemPackSize(Document):
+class BundlePackDetails(Document):
 	pass
