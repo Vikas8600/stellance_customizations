@@ -20,7 +20,7 @@ frappe.ui.form.on('Purchase Order Item', {
                         var bundle_sizes = item.custom_item_pack_size.map(function(pack) {
                             return pack.bundle_size;
                         });
-                        console.log("Bundle Sizes:", bundle_sizes);
+                        frm.fields_dict.items.grid.update_docfield_property("custom_bundle_sizeuom","options",bundle_sizes);
                     }
                 },
                 
