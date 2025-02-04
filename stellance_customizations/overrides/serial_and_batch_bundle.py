@@ -56,9 +56,11 @@ def custom_get_available_batches(kwargs):
 		else:
 			query = query.where(batch_ledger.batch_no == kwargs.batch_no)
 
-	if kwargs.based_on == "LIFO":
-		query = query.orderby(batch_table.creation, order=frappe.qb.desc)
-	elif kwargs.based_on == "Expiry":
+	# if kwargs.based_on == "LIFO":
+	# 	query = query.orderby(batch_table.creation, order=frappe.qb.desc)
+	# elif kwargs.based_on == "Expiry":
+	# 	query = query.orderby(batch_table.expiry_date)
+	if kwargs.based_on == "Expiry":
 		query = query.orderby(batch_table.expiry_date)
 	else:
 		query = query.orderby(batch_table.creation)
