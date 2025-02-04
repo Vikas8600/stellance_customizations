@@ -1,6 +1,10 @@
 frappe.ui.form.on('Sales Order', {
 	refresh: function(frm){
         update_status_options(frm)
+            frappe.model.user_settings.save(frm.doctype, "GridView", null).then((r) => {
+                frappe.model.user_settings[frm.doctype] = r.message || r;
+                frm.fields_dict.items.grid.reset_grid();
+              });
     }
 });
 
