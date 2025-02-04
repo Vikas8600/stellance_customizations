@@ -24,8 +24,11 @@ frappe.ui.form.on('Purchase Receipt', {
                             'name': ['in', existing_item_codes]  
                         },
                         onchange: function () {
+                            dialog.is_readonly_mode = false;
                             const selected_item_code = this.get_value();
                             dialog.set_value('bundle_size', '');
+                            dialog.set_value('total_packs', '');
+                            dialog.set_value('qty', '');
                             dialog.fields_dict.pack_sizes_table.df.data = [];
                             dialog.fields_dict.pack_sizes_table.grid.refresh();
 
@@ -50,19 +53,48 @@ frappe.ui.form.on('Purchase Receipt', {
                                         if (res.message) {
                                             const item = res.message;
                         
-                                            if (!item.custom_pack_size) {
-                                                frappe.msgprint(__('The selected item does not have custom pack sizes enabled.'));
-                                                return;
-                                            }
-                        
+                                            if (item.custom_pack_size || (item.custom_pack_size && item.custom_product_bundle)) {
+												dialog.fields_dict.bundle_size.df.read_only = 0;
+												dialog.fields_dict.total_packs.df.read_only = 0;
+                                                dialog.is_readonly_mode = false;
+												dialog.refresh();
+
+												// If the item has a child table of pack sizes, populate the Bundle Size dropdown.
+												if (item.custom_item_pack_size && item.custom_item_pack_size.length) {
+													const pack_sizes = item.custom_item_pack_size;
+													const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
+													dialog.set_df_property('bundle_size', 'options', pack_size_options);
+													dialog.pack_sizes = pack_sizes;
+												}
+											} else if (!item.custom_pack_size && !item.custom_product_bundle) {
+												dialog.set_df_property('bundle_size', 'read_only', 1);
+												dialog.set_df_property('total_packs', 'read_only', 1);
+                                                dialog.is_readonly_mode = true;
+												dialog.refresh();
+
+                                                let po_qty = dialog.fields_dict.qty.get_value() || 0; 
+                                                dialog.fields_dict.pack_sizes_table.df.data = [{
+                                                    accepted_qty: po_qty 
+                                                }];
+
+												dialog.fields_dict.pack_sizes_table.grid.refresh();
+												let table_fields = dialog.fields_dict.pack_sizes_table.df.fields;
+												table_fields.forEach(function(field) {
+													if (['item_name', 'pack_split', 'no_of_sets'].includes(field.fieldname)) {
+														field.read_only = 1;
+													}
+												});
+											}
+                                            
                                             dialog.set_value('uom', item.uom); 
-                                            if (item.custom_item_pack_size) {
-                                                const pack_sizes = item.custom_item_pack_size;
-                                                const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
-                                                dialog.set_df_property('bundle_size', 'options', pack_size_options);
+                                            
+                                            // if (item.custom_item_pack_size) {
+                                            //     const pack_sizes = item.custom_item_pack_size;
+                                            //     const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
+                                            //     dialog.set_df_property('bundle_size', 'options', pack_size_options);
                         
-                                                dialog.pack_sizes = pack_sizes;
-                                            }
+                                            //     dialog.pack_sizes = pack_sizes;
+                                            // }
                                         }
                                     },
                                 });
@@ -119,7 +151,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                         pack_split: pack.pack_split,
                                         no_of_sets: pack.no_of_sets,
                                         accepted_qty: 0,
-                                        batch_no: null
+                                        batch_id: null
                                     }));
                                     table.refresh();
                                 }
@@ -159,8 +191,10 @@ frappe.ui.form.on('Purchase Receipt', {
                                 const calculated_pending_qty = proportional_qty - accepted_qty;  
                                 if (calculated_pending_qty < 0) {
                                     has_negative_pending_qty = true;
-                                }                  
-                                row.pending_qty = Math.max(Math.round(calculated_pending_qty), 0);
+                                    // calculated_pending_qty = 0; 
+                                }      
+                                row.pending_qty = calculated_pending_qty;          
+                                // row.pending_qty = Math.max(Math.round(calculated_pending_qty), 0);
                                 console.log(row.pending_qty);
                             });
                     
@@ -182,6 +216,7 @@ frappe.ui.form.on('Purchase Receipt', {
                         fieldtype: 'Table',
                         fieldname: 'pack_sizes_table',
                         cannot_add_rows: true,
+                        cannot_delete_rows: false,
                         in_place_edit: true,
                         fields: [
                             {
@@ -218,6 +253,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                 fieldtype: 'Float',
                                 in_list_view: 1,
                                 columns: 1,
+                                read_only: 1,
                             },
                             
                             {
@@ -251,46 +287,54 @@ frappe.ui.form.on('Purchase Receipt', {
                             },
                         ],
                         data: [],
+                        
                     },
                 ],
                 primary_action_label: 'Submit',
                 primary_action(values) {
-                    const batch_rows = values.pack_sizes_table.filter(row => row.pending_qty > 0);
+                    // const batch_rows = values.pack_sizes_table.filter(row => row.pending_qty >= 0);
                     // const batch_rows = values.pack_sizes_table;
                     const total_packs = values.total_packs; 
                     const pack_size = values.bundle_size; 
-                    
-                    if (!batch_rows || batch_rows.length === 0) {
-                        frappe.msgprint(__('The required quantity for item {0} is complete. No further batches are needed.', [values.item_code]));
-                                    return;
+                    // if (!batch_rows || batch_rows.length === 0) {
+                    //     frappe.msgprint(__('The required quantity for item {0} is complete. No further batches are needed.', [values.item_code]));
+                    //         return;
+                    // }
+                    let batch_rows;
+                    if (dialog.is_readonly_mode) {
+                        // For read-only mode, use all rows (even if it is a single blank row)
+                        batch_rows = values.pack_sizes_table;
+                    } else {
+                        batch_rows = values.pack_sizes_table.filter(row => row.pending_qty >= 0);
+                        if (!batch_rows || batch_rows.length === 0) {
+                            frappe.msgprint(__('The required quantity for item {0} is complete. No further batches are needed.', [values.item_code]));
+                            return;
+                        }
+                    }
+                    let promises = batch_rows.map((row) => {
+                        return frappe.call({
+                            method: 'frappe.client.insert',
+                            args: {
+                                doc: {
+                                    doctype: 'Batch',
+                                    batch_id: row.batch_id,
+                                    item: values.item_code,
+                                    manufacturing_date: row.manufacturing_date,
+                                    expiry_date: row.expiry_date,
+                                    status: 'Active'
                                 }
-                          
-                                let promises = batch_rows.map((row) => {
-                                                                
-                                    return frappe.call({
-                                        method: 'frappe.client.insert',
-                                        args: {
-                                            doc: {
-                                                doctype: 'Batch',
-                                                batch_id: row.batch_id,
-                                                item: values.item_code,
-                                                manufacturing_date: row.manufacturing_date,
-                                                expiry_date: row.expiry_date,
-                                                status: 'Active'
-                                            }
-                                        }
-                                    });
-                                });
-                            
-                                Promise.all(promises)
-                                    .then(() => {
-                                        frappe.msgprint(__('Batches created successfully.'));
-                                        // dialog.hide();
-                                    })
-                                    // .catch((error) => {
-                                    //     console.error(error);
-                                    //     frappe.msgprint(__('Error occurred while creating batches.'));
-                                    // });
+                            }
+                        });
+                    });
+                    Promise.all(promises)
+                    .then(() => {
+                        frappe.msgprint(__('Batches created successfully.'));
+                        // dialog.hide();
+                    })
+                    // .catch((error) => {
+                    //     console.error(error);
+                    //         frappe.msgprint(__('Error occurred while creating batches.'));
+                    //     });                
                    
 
                     frappe.call({
@@ -310,14 +354,35 @@ frappe.ui.form.on('Purchase Receipt', {
                                 const item_conversion_factor = item_in_child_table ? item_in_child_table.uom : item.conversion_factor; 
                  
                                 const purchase_order_item = frm.doc.items.find(item => item.item_code === values.item_code);
-                                
                                 let existing_item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
-                
+
+                                if (dialog.is_readonly_mode) {
+									if (existing_item_row) {
+										existing_item_row.batch_no = batch_rows[0].batch_id;
+                                        existing_item_row.qty = first_row.accepted_qty;
+									} 
+                                    // else {
+									// 	frm.add_child('items', {
+									// 		item_code: values.item_code,
+									// 		item_name: item.item_name,
+									// 		description: item.description,
+									// 		uom: item_uom,
+									// 		conversion_factor: item_conversion_factor,
+									// 		warehouse: values.warehouse,
+									// 		qty: batch_rows[0].accepted_qty,
+									// 		batch_no: batch_rows[0].batch_id,
+									// 		rate: item_rate,
+									// 		purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : ""
+									// 	});
+									// }
+								} else {
+
                                 if (existing_item_row) {
                                     if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
                                         const first_row = batch_rows[0];
                                         existing_item_row.qty = first_row.accepted_qty;
                                         existing_item_row.custom_name = first_row.item_name;
+                                        existing_item_row.pack = first_row.item_name;
                                         existing_item_row.batch_no = first_row.batch_id;
                                         existing_item_row.rate = item_rate;
                                         existing_item_row.custom_no_of_packs = total_packs;
@@ -335,6 +400,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 warehouse: values.warehouse,
                                                 qty: row.accepted_qty,
                                                 custom_name: row.item_name,
+                                                pack: row.item_name,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
                                                 custom_no_of_packs: total_packs,
@@ -355,6 +421,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 warehouse: values.warehouse,
                                                 qty: row.accepted_qty,
                                                 custom_name: row.item_name,
+                                                pack: row.item_name,
                                                 batch_no: row.batch_id,
                                                 rate: item_rate,
                                                 custom_no_of_packs: total_packs,
@@ -366,6 +433,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                         });
                                     }
                                 } 
+                            }
                 
                                 frm.refresh_field('items');
                                 // dialog.hide();
@@ -382,6 +450,7 @@ frappe.ui.form.on('Purchase Receipt', {
                         warehouse: frm.doc.set_warehouse,
                         pack_sizes_table: []
                     });
+                    dialog.is_readonly_mode = false;
                     dialog.fields_dict.pack_sizes_table.grid.refresh();
                 },
             });

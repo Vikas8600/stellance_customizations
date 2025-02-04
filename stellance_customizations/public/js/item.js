@@ -6,7 +6,7 @@ frappe.ui.form.on('Item', {
         frm.trigger('toggle_child_table_visibility');
     },
     toggle_child_table_visibility: function (frm) {
-        if (frm.doc.custom_pack_size) {
+        if (frm.doc.custom_pack_size || (frm.doc.custom_pack_size && frm.doc.custom_product_bundle)) {
             frm.set_df_property('custom_item_pack_size', 'hidden', 0);
             frm.fields_dict['custom_item_pack_size'].grid.get_field('fieldname').set_reqd(true);
         } else {
