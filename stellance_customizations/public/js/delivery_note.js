@@ -204,7 +204,7 @@ frappe.ui.form.on('Delivery Note', {
                                     has_serial_no: 0,
                                     has_batch_no: 1,
                                     qty: dialog.fields_dict.qty.value,
-                                    based_on: "FIFO",
+                                    based_on: "Expiry",
                                 },
                                 callback: function (r) {
                                     if (r.message) {
