@@ -7,6 +7,10 @@ frappe.ui.form.on('Purchase Receipt', {
             });
             frm.refresh_field('items');
 	    }
+        frm.fields_dict.custom_purchase_history.$input.on('click', function() {
+            frappe.set_route('query-report', 'Item-wise Purchase History', {
+            });
+        });
         frm.fields_dict["items"].grid.add_custom_button(__('Add Packs'), 
 			function() {
             
