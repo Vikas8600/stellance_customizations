@@ -56,7 +56,12 @@ frappe.ui.form.on('Purchase Receipt', {
                                     callback: function (res) {
                                         if (res.message) {
                                             const item = res.message;
-                        
+
+                                            if (item.item_group === "Product Bundle") {
+                                                console.log("Item is a Product Bundle. Fetching from Product Bundle Doctype...");
+                                                fetch_bundle_sizes_from_product_bundle_in_dialog(dialog, selected_item_code);
+                                            }
+
                                             if (item.custom_pack_size || (item.custom_pack_size && item.custom_product_bundle)) {
 												dialog.fields_dict.bundle_size.df.read_only = 0;
 												dialog.fields_dict.total_packs.df.read_only = 0;
@@ -140,7 +145,7 @@ frappe.ui.form.on('Purchase Receipt', {
                             table.refresh();
                     
                             if (selected_dimension === "Add Pack") {
-                               const selected_item_code = dialog.fields_dict.item_code.get_value(); 
+                                const selected_item_code = dialog.fields_dict.item_code.get_value(); 
                                 if (selected_item_code) {
                                     // frappe.set_route('Form', 'Item', selected_item_code);
                                     const item_url = `/app/item/${selected_item_code}`;
@@ -149,15 +154,63 @@ frappe.ui.form.on('Purchase Receipt', {
                             } else {
                                 if (dialog.pack_sizes && Array.isArray(dialog.pack_sizes)) {
                                     const filtered_data = dialog.pack_sizes.filter(pack => pack.bundle_size === selected_dimension);
-                        
-                                    dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
-                                        item_name: pack.item_name, 
-                                        pack_split: pack.pack_split,
-                                        no_of_sets: pack.no_of_sets,
-                                        accepted_qty: 0,
-                                        batch_id: null
-                                    }));
-                                    table.refresh();
+                    
+                                    frappe.call({
+                                        method: 'frappe.client.get_value',
+                                        args: {
+                                            doctype: 'Product Bundle',
+                                            filters: { 'new_item_code': dialog.fields_dict.item_code.get_value() },
+                                            fieldname: ['name']
+                                        },
+                                        callback: function(response) {
+                                            if (response.message && response.message.name) {
+                                                const bundle_name = response.message.name;
+                    
+                                                frappe.call({
+                                                    method: 'frappe.client.get',
+                                                    args: {
+                                                        doctype: 'Product Bundle',
+                                                        name: bundle_name
+                                                    },
+                                                    callback: function(res) {
+                                                        var bundle = res.message;
+                                                        if (bundle) {
+                                                           
+                                                            const customItemName = bundle.items?.length > 0 
+                                                                ? bundle.items[0].custom_item_name 
+                                                                : dialog.fields_dict.item_code.get_value();
+                    
+                                                            dialog.set_value('item_name', customItemName);
+                                                            dialog.set_value('custom_pack_split', bundle.custom_pack_split || '');
+                                                            dialog.set_value('custom_no_of_sets', bundle.custom_no_of_sets || '');
+                                                            dialog.set_value('custom_bundle_size', selected_dimension);
+                                                            dialog.set_value('custom_part_wise_qty', bundle.custom_part_wise_qty || '');
+                    
+                                                            if (bundle.items && Array.isArray(bundle.items)) {
+                                                                dialog.fields_dict.pack_sizes_table.df.data = bundle.items.map(pack => ({
+                                                                    item_name: pack.custom_item_name || pack.item_code,
+                                                                    pack_split: pack.custom_pack_split || '',
+                                                                    no_of_sets: pack.custom_no_of_sets || '',
+                                                                    accepted_qty: 0,
+                                                                    batch_id: null
+                                                                }));
+                                                                table.refresh();
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            } else {
+                                                dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
+                                                    item_name: pack.custom_item_name || pack.item_name, 
+                                                    pack_split: pack.pack_split,
+                                                    no_of_sets: pack.no_of_sets,
+                                                    accepted_qty: 0,
+                                                    batch_id: null
+                                                }));
+                                                table.refresh();
+                                            }
+                                        }
+                                    });
                                 }
                             }
                         }
@@ -298,8 +351,8 @@ frappe.ui.form.on('Purchase Receipt', {
                 primary_action(values) {
                     // const batch_rows = values.pack_sizes_table.filter(row => row.pending_qty >= 0);
                     // const batch_rows = values.pack_sizes_table;
-                    const total_packs = values.total_packs; 
-                    const pack_size = values.bundle_size; 
+                    const total_packs = values.total_packs;
+                    const pack_size = values.bundle_size;
                     // if (!batch_rows || batch_rows.length === 0) {
                     //     frappe.msgprint(__('The required quantity for item {0} is complete. No further batches are needed.', [values.item_code]));
                     //         return;
@@ -315,31 +368,52 @@ frappe.ui.form.on('Purchase Receipt', {
                             return;
                         }
                     }
-                    let promises = batch_rows.map((row) => {
-                        return frappe.call({
-                            method: 'frappe.client.insert',
-                            args: {
-                                doc: {
-                                    doctype: 'Batch',
-                                    batch_id: row.batch_id,
-                                    item: values.item_code,
-                                    manufacturing_date: row.manufacturing_date,
-                                    expiry_date: row.expiry_date,
-                                    status: 'Active'
-                                }
+
+                    frappe.call({
+                        method: 'frappe.client.get_value',
+                        args: {
+                            doctype: 'Item',
+                            filters: { 'item_code': values.item_code },
+                            fieldname: ['item_group']
+                        },
+                        callback: function (response) {
+                            if (response.message && response.message.item_group === "Product Bundle") {
+                                // Call server script for Product Bundle
+                                frappe.call({
+                                    method: 'stellance_customizations.overrides.purchase_receipt.create_batches_for_product_bundle',
+                                    args: {
+                                        item_code: values.item_code,
+                                        batch_rows: JSON.stringify(batch_rows)
+                                    },
+                                });
+                            } else {
+                                let promises = batch_rows.map((row) => {
+                                    return frappe.call({
+                                        method: 'frappe.client.insert',
+                                        args: {
+                                            doc: {
+                                                doctype: 'Batch',
+                                                batch_id: row.batch_id,
+                                                item: values.item_code,
+                                                manufacturing_date: row.manufacturing_date,
+                                                expiry_date: row.expiry_date,
+                                                status: 'Active'
+                                            }
+                                        }
+                                    });
+                                });
+                                Promise.all(promises)
+                                    .then(() => {
+                                        frappe.msgprint(__('Batches created successfully.'));
+                                        // dialog.hide();
+                                    })
+                                    .catch((error) => {
+                                        console.error('Batch creation error:', error);
+                                    });
                             }
-                        });
+                        }
                     });
-                    Promise.all(promises)
-                    .then(() => {
-                        frappe.msgprint(__('Batches created successfully.'));
-                        // dialog.hide();
-                    })
-                    // .catch((error) => {
-                    //     console.error(error);
-                    //         frappe.msgprint(__('Error occurred while creating batches.'));
-                    //     });                
-                   
+
 
                     frappe.call({
                         method: 'frappe.client.get',
@@ -352,93 +426,144 @@ frappe.ui.form.on('Purchase Receipt', {
                                 const item = res.message;
                                 const selected_item_code = values.item_code;
                                 const item_in_child_table = frm.doc.items.find(item => item.item_code === selected_item_code);
-                
+
                                 const item_rate = item_in_child_table ? item_in_child_table.rate : item.standard_rate;
-                                const item_uom = item_in_child_table ? item_in_child_table.uom : item.uom; 
-                                const item_conversion_factor = item_in_child_table ? item_in_child_table.uom : item.conversion_factor; 
-                 
+                                const item_uom = item_in_child_table ? item_in_child_table.uom : item.uom;
+                                const item_conversion_factor = item_in_child_table ? item_in_child_table.uom : item.conversion_factor;
+
                                 const purchase_order_item = frm.doc.items.find(item => item.item_code === values.item_code);
                                 let existing_item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
+                                if (item.item_group === "Product Bundle") {
+                                    frappe.call({
+                                        method: 'frappe.client.get',
+                                        args: {
+                                            doctype: 'Product Bundle',
+                                            filters: { 'new_item_code': values.item_code },
+                                        },
+                                        callback: function (response) {
+                                            if (response.message && response.message.items) {
+                                                const bundle_items = response.message.items;
+
+                                                batch_rows.forEach(row => {
+                                                    const matching_part = bundle_items.find(part =>
+                                                        part.custom_item_name && part.custom_item_name.trim() === row.item_name.trim()
+                                                    );
+
+                                                    if (matching_part) {
+                                                        frm.add_child('items', {
+                                                            item_code: matching_part.item_code,
+                                                            item_name: matching_part.custom_item_name || matching_part.item_name,
+                                                            description: matching_part.description || item.description,
+                                                            uom: item_uom,
+                                                            conversion_factor: item_conversion_factor,
+                                                            warehouse: values.warehouse,
+                                                            qty: row.accepted_qty,
+                                                            custom_name: row.item_name,
+                                                            pack: row.item_name,
+                                                            batch_no: row.batch_id,
+                                                            rate: item_rate,
+                                                            custom_no_of_packs: total_packs,
+                                                            custom_pack_size: pack_size,
+                                                            custom_bundle_sizeuom: pack_size,
+                                                            purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : "",
+                                                            custom_prev_quality: purchase_order_item ? purchase_order_item.custom_prev_quality : ""
+                                                        });
+                                                    }
+                                                });
+                                                let bundle_item_index = frm.doc.items.findIndex(item => item.item_code === values.item_code);
+                                                if (bundle_item_index !== -1) {
+                                                    frm.doc.items.splice(bundle_item_index, 1);
+                                                }
+
+                                                frm.refresh_field('items');
+                                            } else {
+                                                frappe.msgprint(__('No items found in the Product Bundle.'));
+                                            }
+                                        }
+                                    });
+
+                                    return;
+                                }
 
                                 if (dialog.is_readonly_mode) {
-									if (existing_item_row) {
-										existing_item_row.batch_no = batch_rows[0].batch_id;
+                                    if (existing_item_row) {
+                                        existing_item_row.batch_no = batch_rows[0].batch_id;
                                         existing_item_row.qty = first_row.accepted_qty;
-									} 
-                                    // else {
-									// 	frm.add_child('items', {
-									// 		item_code: values.item_code,
-									// 		item_name: item.item_name,
-									// 		description: item.description,
-									// 		uom: item_uom,
-									// 		conversion_factor: item_conversion_factor,
-									// 		warehouse: values.warehouse,
-									// 		qty: batch_rows[0].accepted_qty,
-									// 		batch_no: batch_rows[0].batch_id,
-									// 		rate: item_rate,
-									// 		purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : ""
-									// 	});
-									// }
-								} else {
-
-                                if (existing_item_row) {
-                                    if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
-                                        const first_row = batch_rows[0];
-                                        existing_item_row.qty = first_row.accepted_qty;
-                                        existing_item_row.custom_name = first_row.item_name;
-                                        existing_item_row.pack = first_row.item_name;
-                                        existing_item_row.batch_no = first_row.batch_id;
-                                        existing_item_row.rate = item_rate;
-                                        existing_item_row.custom_no_of_packs = total_packs;
-                                        existing_item_row.custom_pack_size = pack_size;
-                                        existing_item_row.custom_bundle_sizeuom = pack_size;
-                                        existing_item_row.purchase_order_item = purchase_order_item.purchase_order_item
-                
-                                        batch_rows.slice(1).forEach(row => {
-                                            frm.add_child('items', {
-                                                item_code: values.item_code,
-                                                item_name: item.item_name,
-                                                description: item.description,
-                                                uom: item_uom,
-                                                conversion_factor: item_conversion_factor,
-                                                warehouse: values.warehouse,
-                                                qty: row.accepted_qty,
-                                                custom_name: row.item_name,
-                                                pack: row.item_name,
-                                                batch_no: row.batch_id,
-                                                rate: item_rate,
-                                                custom_no_of_packs: total_packs,
-                                                custom_pack_size: pack_size,
-                                                custom_bundle_sizeuom: pack_size,
-                                                purchase_order_item: purchase_order_item.purchase_order_item,
-                                                custom_prev_quality: purchase_order_item.custom_prev_quality
-                                            });
-                                        });
-                                    } else {
-                                        batch_rows.forEach(row => {
-                                            frm.add_child('items', {
-                                                item_code: values.item_code,
-                                                item_name: item.item_name,
-                                                description: item.description,
-                                                uom: item_uom,
-                                                conversion_factor: item_conversion_factor,
-                                                warehouse: values.warehouse,
-                                                qty: row.accepted_qty,
-                                                custom_name: row.item_name,
-                                                pack: row.item_name,
-                                                batch_no: row.batch_id,
-                                                rate: item_rate,
-                                                custom_no_of_packs: total_packs,
-                                                custom_pack_size: pack_size,
-                                                custom_bundle_sizeuom: pack_size,
-                                                purchase_order_item: purchase_order_item.purchase_order_item,
-                                                custom_prev_quality: purchase_order_item.custom_prev_quality
-                                            });
-                                        });
                                     }
-                                } 
-                            }
-                
+                                    // else {
+                                    // 	frm.add_child('items', {
+                                    // 		item_code: values.item_code,
+                                    // 		item_name: item.item_name,
+                                    // 		description: item.description,
+                                    // 		uom: item_uom,
+                                    // 		conversion_factor: item_conversion_factor,
+                                    // 		warehouse: values.warehouse,
+                                    // 		qty: batch_rows[0].accepted_qty,
+                                    // 		batch_no: batch_rows[0].batch_id,
+                                    // 		rate: item_rate,
+                                    // 		purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : ""
+                                    // 	});
+                                    // }
+                                } else {
+
+                                    if (existing_item_row) {
+                                        if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
+                                            const first_row = batch_rows[0];
+                                            existing_item_row.qty = first_row.accepted_qty;
+                                            existing_item_row.custom_name = first_row.item_name;
+                                            existing_item_row.pack = first_row.item_name;
+                                            existing_item_row.batch_no = first_row.batch_id;
+                                            existing_item_row.rate = item_rate;
+                                            existing_item_row.custom_no_of_packs = total_packs;
+                                            existing_item_row.custom_pack_size = pack_size;
+                                            existing_item_row.custom_bundle_sizeuom = pack_size;
+                                            existing_item_row.purchase_order_item = purchase_order_item.purchase_order_item
+
+                                            batch_rows.slice(1).forEach(row => {
+                                                frm.add_child('items', {
+                                                    item_code: values.item_code,
+                                                    item_name: item.item_name,
+                                                    description: item.description,
+                                                    uom: item_uom,
+                                                    conversion_factor: item_conversion_factor,
+                                                    warehouse: values.warehouse,
+                                                    qty: row.accepted_qty,
+                                                    custom_name: row.item_name,
+                                                    pack: row.item_name,
+                                                    batch_no: row.batch_id,
+                                                    rate: item_rate,
+                                                    custom_no_of_packs: total_packs,
+                                                    custom_pack_size: pack_size,
+                                                    custom_bundle_sizeuom: pack_size,
+                                                    purchase_order_item: purchase_order_item.purchase_order_item,
+                                                    custom_prev_quality: purchase_order_item.custom_prev_quality
+                                                });
+                                            });
+                                        } else {
+                                            batch_rows.forEach(row => {
+                                                frm.add_child('items', {
+                                                    item_code: values.item_code,
+                                                    item_name: item.item_name,
+                                                    description: item.description,
+                                                    uom: item_uom,
+                                                    conversion_factor: item_conversion_factor,
+                                                    warehouse: values.warehouse,
+                                                    qty: row.accepted_qty,
+                                                    custom_name: row.item_name,
+                                                    pack: row.item_name,
+                                                    batch_no: row.batch_id,
+                                                    rate: item_rate,
+                                                    custom_no_of_packs: total_packs,
+                                                    custom_pack_size: pack_size,
+                                                    custom_bundle_sizeuom: pack_size,
+                                                    purchase_order_item: purchase_order_item.purchase_order_item,
+                                                    custom_prev_quality: purchase_order_item.custom_prev_quality
+                                                });
+                                            });
+                                        }
+                                    }
+                                }
+
                                 frm.refresh_field('items');
                                 // dialog.hide();
                             } else {
@@ -458,16 +583,16 @@ frappe.ui.form.on('Purchase Receipt', {
                     dialog.fields_dict.pack_sizes_table.grid.refresh();
                 },
             });
-            dialog.set_secondary_action(function () {
-                // frappe.msgprint(__('Save button clicked.'));
-                dialog.hide();
+                dialog.set_secondary_action(function () {
+                    // frappe.msgprint(__('Save button clicked.'));
+                    dialog.hide();
+                });
+
+                dialog.set_secondary_action_label('Save');
+                dialog.show();
             });
-    
-            dialog.set_secondary_action_label('Save');
-            dialog.show();
-        });
     },
-     validate: function(frm) {
+    validate: function(frm) {
         // Grouping and sorting items dynamically based on 'item_code'
         if (frm.doc.items && frm.doc.items.length > 0) {
             frm.doc.items.sort((a, b) => {
@@ -477,11 +602,46 @@ frappe.ui.form.on('Purchase Receipt', {
             });
 
             frm.doc.items.forEach((item, index) => {
-                item.idx = index + 1; 
+                item.idx = index + 1;
             });
 
-        // Refresh the field to reflect changes
-        frm.refresh_field('items');
+            // Refresh the field to reflect changes
+            frm.refresh_field('items');
+        }
     }
-} 
-})
+});
+
+function fetch_bundle_sizes_from_product_bundle_in_dialog(dialog, item_name) {
+    frappe.call({
+        method: 'frappe.client.get',
+        args: {
+            doctype: 'Product Bundle',
+            name: item_name
+        },
+        callback: function (response) {
+            var bundle = response.message;
+            console.log("Product Bundle response received:", bundle);
+
+            if (bundle.items && bundle.items.length > 0) {
+                var bundle_sizes = bundle.items.map(function (pack) {
+                    return pack.custom_bundle_size;
+                }).filter(Boolean);
+                bundle_sizes = [...new Set(bundle_sizes)];
+                console.log("Bundle Sizes from Product Bundle Items:", bundle_sizes);
+
+
+                dialog.set_df_property('bundle_size', 'options', bundle_sizes);
+                dialog.pack_sizes = bundle.items.map(pack => ({
+                    item_name: pack.item_name,
+                    pack_split: pack.pack_split,
+                    no_of_sets: pack.no_of_sets,
+                    accepted_qty: 0,
+                    batch_id: null
+                }));
+                dialog.fields_dict.pack_sizes_table.grid.refresh();
+            } else {
+                console.warn("No items found in Product Bundle:", bundle);
+            }
+        }
+    });
+}
