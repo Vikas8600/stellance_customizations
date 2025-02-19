@@ -381,8 +381,12 @@ frappe.ui.form.on('Delivery Note', {
                 
                                 if (item.item_group === "Product Bundle") {
                                     if (existing_item_row) {
-                                        existing_item_row.qty += values.qty;
-                                    } 
+                                        let total_packs = values.total_packs || 0;
+                                        let bundle_size = values.bundle_size || 0;
+                                    
+                                        existing_item_row.qty += (parseFloat(total_packs) * parseFloat(bundle_size)) || 0;
+                                        existing_item_row.custom_no_of_packs = values.total_packs
+                                    }
                                     // else {
 									// 	frm.add_child('items', {
 									// 		item_code: values.item_code,
@@ -397,7 +401,7 @@ frappe.ui.form.on('Delivery Note', {
 									// 		purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : ""
 									// 	});
 									// }
-                                    else {
+                                    else {                      
                                         frm.add_child('items', {
                                             item_code: values.item_code,
                                             item_name: item.item_name,
@@ -405,9 +409,9 @@ frappe.ui.form.on('Delivery Note', {
                                             uom: item.stock_uom,
                                             conversion_factor: 1,
                                             warehouse: values.warehouse,
-                                            qty: values.qty,
+                                            qty: values.total_packs * values.bundle_size,
                                             rate: item.standard_rate,
-                                            custom_no_of_packs: total_packs,
+                                            custom_no_of_packs: parseFloat(values.total_packs) || 0,
                                             custom_bundle_sizeuom: pack_size
                                         });
                                     }
@@ -423,7 +427,7 @@ frappe.ui.form.on('Delivery Note', {
                                             existing_item_row.custom_no_of_packs = total_packs;
                                             existing_item_row.custom_bundle_sizeuom = pack_size;
                                             existing_item_row.sales_order_item = sales_order_item .sales_order_item
-                
+
                                             batch_rows.slice(1).forEach(row => {
                                                 frm.add_child('items', {
                                                     item_code: values.item_code,

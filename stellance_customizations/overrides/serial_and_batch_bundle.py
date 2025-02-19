@@ -106,3 +106,7 @@ def custom_get_qty_based_available_batches(available_batches, qty):
 			qty = 0
 
 	return batches
+
+
+def validate_actual_qty(self, doc):
+    pass
