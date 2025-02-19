@@ -347,7 +347,7 @@ frappe.ui.form.on('Delivery Note', {
                     //     frappe.msgprint(__('The required quantity for item {0} is complete. No further batches are needed.', [values.item_code]));
                     //         return;
                     // }
-
+                
                     let batch_rows;
                     if (dialog.is_readonly_mode) {
                         // For read-only mode, use all rows (even if it is a single blank row)
@@ -359,7 +359,7 @@ frappe.ui.form.on('Delivery Note', {
                             return;
                         }
                     }
-                   
+                
                     frappe.call({
                         method: 'frappe.client.get',
                         args: {
@@ -375,15 +375,14 @@ frappe.ui.form.on('Delivery Note', {
                                 const item_rate = item_in_child_table ? item_in_child_table.rate : item.standard_rate;
                                 const item_uom = item_in_child_table ? item_in_child_table.uom : item.uom; 
                                 const item_conversion_factor = item_in_child_table ? item_in_child_table.uom : item.conversion_factor; 
-                 
+                
                                 const sales_order_item = frm.doc.items.find(item => item.item_code === values.item_code);
                                 let existing_item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
-
-                                if (dialog.is_readonly_mode) {
-									if (existing_item_row) {
-										existing_item_row.batch_no = batch_rows[0].batch_id;
-                                        existing_item_row.qty = first_row.accepted_qty;
-									} 
+                
+                                if (item.item_group === "Product Bundle") {
+                                    if (existing_item_row) {
+                                        existing_item_row.qty += values.qty;
+                                    } 
                                     // else {
 									// 	frm.add_child('items', {
 									// 		item_code: values.item_code,
@@ -398,62 +397,76 @@ frappe.ui.form.on('Delivery Note', {
 									// 		purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : ""
 									// 	});
 									// }
-								} else {
-                                if (existing_item_row) {
-                                    if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
-                                        const first_row = batch_rows[0];
-                                        existing_item_row.qty = first_row.accepted_qty;
-                                        existing_item_row.custom_name = first_row.item_name;
-                                        existing_item_row.pack = first_row.item_name,
-                                        existing_item_row.batch_no = first_row.batch_id;
-                                        existing_item_row.rate = item_rate;
-                                        existing_item_row.custom_no_of_packs = total_packs;
-                                        existing_item_row.custom_bundle_sizeuom = pack_size;
-                                        existing_item_row.sales_order_item = sales_order_item .sales_order_item
-                
-                                        batch_rows.slice(1).forEach(row => {
-                                            frm.add_child('items', {
-                                                item_code: values.item_code,
-                                                item_name: item.item_name,
-                                                pack: row.item_name,
-                                                description: item.description,
-                                                uom: item_uom,
-                                                conversion_factor: item_conversion_factor,
-                                                warehouse: values.warehouse,
-                                                qty: row.accepted_qty,
-                                                custom_name: row.item_name,
-                                                batch_no: row.batch_id,
-                                                rate: item_rate,
-                                                custom_no_of_packs: total_packs,
-                                                custom_bundle_sizeuom: pack_size,
-                                                sales_order_item: sales_order_item.sales_order_item,
-                                                custom_prev_quality: sales_order_item.custom_prev_quality
-                                            });
-                                        });
-                                    } else {
-                                        batch_rows.forEach(row => {
-                                            frm.add_child('items', {
-                                                item_code: values.item_code,
-                                                item_name: item.item_name,
-                                                pack: row.item_name,
-                                                description: item.description,
-                                                uom: item_uom,
-                                                conversion_factor: item_conversion_factor,
-                                                warehouse: values.warehouse,
-                                                qty: row.accepted_qty,
-                                                custom_name: row.item_name,
-                                                batch_no: row.batch_id,
-                                                rate: item_rate,
-                                                custom_no_of_packs: total_packs,
-                                                custom_pack_size: pack_size,
-                                                custom_bundle_sizeuom: pack_size,
-                                                sales_order_item: sales_order_item.sales_order_item,
-                                                custom_prev_quality: sales_order_item.custom_prev_quality
-                                            });
+                                    else {
+                                        frm.add_child('items', {
+                                            item_code: values.item_code,
+                                            item_name: item.item_name,
+                                            description: item.description,
+                                            uom: item.stock_uom,
+                                            conversion_factor: 1,
+                                            warehouse: values.warehouse,
+                                            qty: values.qty,
+                                            rate: item.standard_rate,
+                                            custom_no_of_packs: total_packs,
+                                            custom_bundle_sizeuom: pack_size
                                         });
                                     }
-                                } 
-                            }
+                                } else {
+                                    if (existing_item_row) {
+                                        if (!existing_item_row.batch_no && !existing_item_row.custom_name) {
+                                            const first_row = batch_rows[0];
+                                            existing_item_row.qty = first_row.accepted_qty;
+                                            existing_item_row.custom_name = first_row.item_name;
+                                            existing_item_row.pack = first_row.item_name,
+                                            existing_item_row.batch_no = first_row.batch_id;
+                                            existing_item_row.rate = item_rate;
+                                            existing_item_row.custom_no_of_packs = total_packs;
+                                            existing_item_row.custom_bundle_sizeuom = pack_size;
+                                            existing_item_row.sales_order_item = sales_order_item .sales_order_item
+                
+                                            batch_rows.slice(1).forEach(row => {
+                                                frm.add_child('items', {
+                                                    item_code: values.item_code,
+                                                    item_name: item.item_name,
+                                                    pack: row.item_name,
+                                                    description: item.description,
+                                                    uom: item_uom,
+                                                    conversion_factor: item_conversion_factor,
+                                                    warehouse: values.warehouse,
+                                                    qty: row.accepted_qty,
+                                                    custom_name: row.item_name,
+                                                    batch_no: row.batch_id,
+                                                    rate: item_rate,
+                                                    custom_no_of_packs: total_packs,
+                                                    custom_bundle_sizeuom: pack_size,
+                                                    sales_order_item: sales_order_item.sales_order_item,
+                                                    custom_prev_quality: sales_order_item.custom_prev_quality
+                                                });
+                                            });
+                                        } else {
+                                            batch_rows.forEach(row => {
+                                                frm.add_child('items', {
+                                                    item_code: values.item_code,
+                                                    item_name: item.item_name,
+                                                    pack: row.item_name,
+                                                    description: item.description,
+                                                    uom: item_uom,
+                                                    conversion_factor: item_conversion_factor,
+                                                    warehouse: values.warehouse,
+                                                    qty: row.accepted_qty,
+                                                    custom_name: row.item_name,
+                                                    batch_no: row.batch_id,
+                                                    rate: item_rate,
+                                                    custom_no_of_packs: total_packs,
+                                                    custom_pack_size: pack_size,
+                                                    custom_bundle_sizeuom: pack_size,
+                                                    sales_order_item: sales_order_item.sales_order_item,
+                                                    custom_prev_quality: sales_order_item.custom_prev_quality
+                                                });
+                                            });
+                                        }
+                                    }
+                                }               
                                 frm.refresh_field('items');
                                 // dialog.hide();
                             } else {
