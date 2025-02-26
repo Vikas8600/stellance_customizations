@@ -54,3 +54,58 @@ def create_batches_for_product_bundle(item_code, batch_rows):
 
     return batch_results
 
+
+
+@frappe.whitelist()
+def get_remaining_qty(item_code, purchase_order):
+    po_item = frappe.db.get_value("Purchase Order Item", 
+                                  {"parent": purchase_order, "item_code": item_code}, 
+                                  ["qty", "custom_no_of_packs"], as_dict=True) or {}
+
+    po_qty = float(po_item.get("qty", 0))
+    no_of_packs = float(po_item.get("custom_no_of_packs", 0))  
+
+    is_product_bundle = frappe.db.exists("Product Bundle", item_code)
+
+    if is_product_bundle:
+
+        bundle_items = frappe.get_all("Product Bundle Item",
+                                      filters={"parent": item_code},
+                                      fields=["item_code", "custom_part_wise_qty"])
+
+
+        total_remaining = {}
+        for bundle_item in bundle_items:
+            child_item_code = bundle_item.get("item_code")
+            part_wise_qty = float(bundle_item.get("custom_part_wise_qty", 0))
+
+            ordered_qty = part_wise_qty * no_of_packs
+
+            received_qty = frappe.db.sql("""
+                SELECT SUM(qty) FROM `tabPurchase Receipt Item`
+                WHERE item_code = %s AND purchase_order = %s AND docstatus = 1
+            """, (child_item_code, purchase_order))[0][0] or 0
+
+            received_qty = float(received_qty)
+
+            remaining_qty = max(ordered_qty - received_qty, 0)
+
+            total_remaining[child_item_code] = {
+                "ordered": ordered_qty,
+                "received": received_qty,
+                "remaining": remaining_qty
+            }
+
+        return {"remaining_qty": total_remaining}
+
+    else:
+
+        received_qty = frappe.db.sql("""
+            SELECT SUM(qty) FROM `tabPurchase Receipt Item`
+            WHERE item_code = %s AND purchase_order = %s AND docstatus = 1
+        """, (item_code, purchase_order))[0][0] or 0
+
+        received_qty = float(received_qty)
+
+        remaining_qty = max(po_qty - received_qty, 0)
+        return {"remaining_qty": remaining_qty}

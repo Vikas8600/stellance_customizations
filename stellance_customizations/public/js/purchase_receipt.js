@@ -35,18 +35,19 @@ frappe.ui.form.on('Purchase Receipt', {
                             dialog.set_value('qty', '');
                             dialog.fields_dict.pack_sizes_table.df.data = [];
                             dialog.fields_dict.pack_sizes_table.grid.refresh();
-
+                    
                             if (selected_item_code) { 
                                 const item_row = frm.doc.items.find(item => item.item_code === selected_item_code);
-
+                                const purchase_order = item_row ? item_row.purchase_order : null;
+                    
                                 if (item_row) {
-                                        const matching_items = frm.doc.items.filter(item => item.item_code === selected_item_code);
-                                        const total_qty = matching_items.reduce((sum, item) => sum + (item.qty || 0), 0);
-                                        const total_prev_qty = item_row.custom_prev_quality || 0;
-                                        const pending_qty = total_prev_qty - total_qty;
-                                        dialog.set_value('qty', pending_qty || 0)
+                                    const matching_items = frm.doc.items.filter(item => item.item_code === selected_item_code);
+                                    const total_qty = matching_items.reduce((sum, item) => sum + (item.qty || 0), 0);
+                                    const total_prev_qty = item_row.custom_prev_quality || 0;
+                                    const pending_qty = total_prev_qty - total_qty;
+                                    dialog.set_value('qty', pending_qty || 0);
                                 }
-
+                    
                                 frappe.call({
                                     method: 'frappe.client.get',
                                     args: {
@@ -56,48 +57,129 @@ frappe.ui.form.on('Purchase Receipt', {
                                     callback: function (res) {
                                         if (res.message) {
                                             const item = res.message;
-
-                                            if (item.item_group === "Product Bundle") {
-                                                console.log("Item is a Product Bundle. Fetching from Product Bundle Doctype...");
-                                                fetch_bundle_sizes_from_product_bundle_in_dialog(dialog, selected_item_code);
-                                            }
-
+                    
                                             if (item.custom_is_single_item) {
-                                                // If Single Item, set bundle size options from custom_bundle_size
                                                 dialog.set_df_property('bundle_size', 'options', [item.custom_bundle_size]);
-                                            } else if (item.custom_pack_size || item.custom_product_bundle) {
-                                                dialog.fields_dict.bundle_size.df.read_only = 0;
-                                                dialog.fields_dict.total_packs.df.read_only = 0;
-                                                dialog.is_readonly_mode = false;
-                                                dialog.refresh();
-                                            
-												// If the item has a child table of pack sizes, populate the Bundle Size dropdown.
-                                                if (item.custom_item_pack_size && item.custom_item_pack_size.length) {
-                                                    const pack_sizes = item.custom_item_pack_size;
-                                                    const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
-                                                    dialog.set_df_property('bundle_size', 'options', pack_size_options);
-                                                    dialog.pack_sizes = pack_sizes;
+                                            } 
+                                            else {
+                                                if (item.item_group === "Product Bundle") {
+                                                    console.log("Item is a Product Bundle. Fetching from Product Bundle Doctype...");
+                                                    fetch_bundle_sizes_from_product_bundle_in_dialog(dialog, selected_item_code);
+                                                    
+                                                    if (purchase_order) {
+                                                        frappe.call({
+                                                            method: "stellance_customizations.overrides.purchase_receipt.get_remaining_qty",
+                                                            args: {
+                                                                item_code: selected_item_code,
+                                                                purchase_order: purchase_order
+                                                            },
+                                                            callback: function (response) {
+                                                                console.log(response);
+                                                                if (response.message) {
+                                                                    if (typeof response.message.remaining_qty === 'object') {
+                                                                        let pack_sizes_data = [];
+                    
+                                                                        Object.entries(response.message.remaining_qty).forEach(([child_item, data]) => {
+                                                                            if (data.remaining > 0) {
+                                                                                pack_sizes_data.push({
+                                                                                    item_name: child_item,
+                                                                                    pack_split: data.pack_split || '',
+                                                                                    no_of_sets: data.no_of_sets || '',
+                                                                                    accepted_qty: data.remaining || 0,  
+                                                                                    batch_id: null
+                                                                                });
+                                                                            }
+                                                                        });
+                    
+                                                                        dialog.fields_dict.pack_sizes_table.df.data = pack_sizes_data;
+                                                                        dialog.fields_dict.pack_sizes_table.grid.refresh();
+                                                                    } else {
+                                                                        dialog.set_value('qty', response.message.remaining_qty || 0);
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+                                                    }
                                                 }
-                                            } else {
-                                                dialog.set_df_property('bundle_size', 'read_only', 1);
-                                                dialog.set_df_property('total_packs', 'read_only', 1);
-                                                dialog.is_readonly_mode = true;
-												dialog.refresh();
-
-                                                let po_qty = dialog.fields_dict.qty.get_value() || 0; 
-                                                dialog.fields_dict.pack_sizes_table.df.data = [{
-                                                    accepted_qty: po_qty 
-                                                }];
-
-												dialog.fields_dict.pack_sizes_table.grid.refresh();
-												let table_fields = dialog.fields_dict.pack_sizes_table.df.fields;
-												table_fields.forEach(function(field) {
-													if (['item_name', 'pack_split', 'no_of_sets'].includes(field.fieldname)) {
-														field.read_only = 1;
-													}
-												});
-											}
-                                            
+                    
+                                                if (item.custom_pack_size || item.custom_product_bundle) {
+                                                    dialog.fields_dict.bundle_size.df.read_only = 0;
+                                                    dialog.fields_dict.total_packs.df.read_only = 0;
+                                                    dialog.is_readonly_mode = false;
+                                                    dialog.refresh();
+                    
+                                                    if (item.custom_item_pack_size && item.custom_item_pack_size.length) {
+                                                        const pack_sizes = item.custom_item_pack_size;
+                                                        const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
+                                                        dialog.set_df_property('bundle_size', 'options', pack_size_options);
+                                                        dialog.pack_sizes = pack_sizes;
+                                                    }
+                                                }else {
+                                                    dialog.set_df_property('bundle_size', 'read_only', 1);
+                                                    dialog.set_df_property('total_packs', 'read_only', 1);
+                                                    dialog.is_readonly_mode = true;
+                                                    dialog.refresh();
+                    
+                                                    let po_qty = dialog.fields_dict.qty.get_value() || 0; 
+                                                    dialog.fields_dict.pack_sizes_table.df.data = [{
+                                                        accepted_qty: po_qty 
+                                                    }];
+                    
+                                                    dialog.fields_dict.pack_sizes_table.grid.refresh();
+                                                    let table_fields = dialog.fields_dict.pack_sizes_table.df.fields;
+                                                    table_fields.forEach(function(field) {
+                                                        if (['item_name', 'pack_split', 'no_of_sets'].includes(field.fieldname)) {
+                                                            field.read_only = 1;
+                                                        }
+                                                    });
+                                                }  
+                    
+                                                if (item.item_group === "Product Bundle") {
+                                                    frappe.call({
+                                                        method: 'frappe.client.get_value',
+                                                        args: {
+                                                            doctype: 'Product Bundle',
+                                                            filters: { 'new_item_code': selected_item_code },
+                                                            fieldname: ['name']
+                                                        },
+                                                        callback: function(response) {
+                                                            if (response.message && response.message.name) {
+                                                                const bundle_name = response.message.name;
+                    
+                                                                frappe.call({
+                                                                    method: 'frappe.client.get',
+                                                                    args: {
+                                                                        doctype: 'Product Bundle',
+                                                                        name: bundle_name
+                                                                    },
+                                                                    callback: function(res) {
+                                                                        if (res.message) {
+                                                                            var bundle = res.message;
+                                                                            let pack_sizes_data = [];
+                    
+                                                                            bundle.items.forEach(pack => {
+                                                                                let allocated_qty = (pack.custom_no_of_sets || 0) * (pack.custom_pack_split || 0);
+                    
+                                                                                pack_sizes_data.push({
+                                                                                    item_name: pack.custom_item_name || selected_item_code,
+                                                                                    pack_split: pack.custom_pack_split || '',
+                                                                                    no_of_sets: pack.custom_no_of_sets || '',
+                                                                                    accepted_qty: allocated_qty,
+                                                                                    batch_id: null
+                                                                                });
+                                                                            });
+                    
+                                                                            dialog.fields_dict.pack_sizes_table.df.data = pack_sizes_data;
+                                                                            dialog.fields_dict.pack_sizes_table.grid.refresh();
+                                                                        }
+                                                                    }
+                                                                });
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            }
+                    
                                             dialog.set_value('uom', item.uom); 
                                             
                                             // if (item.custom_item_pack_size) {
@@ -112,7 +194,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                 });
                             }
                         },
-                    },
+                    },                                       
                     {
                         fieldtype: 'Column Break',
                     },
@@ -148,76 +230,115 @@ frappe.ui.form.on('Purchase Receipt', {
                             table.refresh();
                     
                             if (selected_dimension === "Add Pack") {
-                                const selected_item_code = dialog.fields_dict.item_code.get_value(); 
+                                const selected_item_code = dialog.fields_dict.item_code.get_value();
                                 if (selected_item_code) {
                                     // frappe.set_route('Form', 'Item', selected_item_code);
                                     const item_url = `/app/item/${selected_item_code}`;
                                     window.open(item_url, '_blank');  
-                                } 
+                                }
                             } else {
                                 if (dialog.pack_sizes && Array.isArray(dialog.pack_sizes)) {
                                     const filtered_data = dialog.pack_sizes.filter(pack => pack.bundle_size === selected_dimension);
+                                    const selected_item_code = dialog.fields_dict.item_code.get_value();
+                                    const purchase_order = frm.doc.items.find(item => item.item_code === selected_item_code)?.purchase_order;
                     
-                                    frappe.call({
-                                        method: 'frappe.client.get_value',
-                                        args: {
-                                            doctype: 'Product Bundle',
-                                            filters: { 'new_item_code': dialog.fields_dict.item_code.get_value() },
-                                            fieldname: ['name']
-                                        },
-                                        callback: function(response) {
-                                            if (response.message && response.message.name) {
-                                                const bundle_name = response.message.name;
+                                    if (purchase_order) {
+                                        frappe.call({
+                                            method: "stellance_customizations.overrides.purchase_receipt.get_remaining_qty",
+                                            args: {
+                                                item_code: selected_item_code,
+                                                purchase_order: purchase_order
+                                            },
+                                            callback: function(response) {
+                                                if (response.message) {
+                                                    const remaining_data = response.message.remaining_qty || {};
                     
-                                                frappe.call({
-                                                    method: 'frappe.client.get',
-                                                    args: {
-                                                        doctype: 'Product Bundle',
-                                                        name: bundle_name
-                                                    },
-                                                    callback: function(res) {
-                                                        var bundle = res.message;
-                                                        if (bundle) {
-                                                           
-                                                            const customItemName = bundle.items?.length > 0 
-                                                                ? bundle.items[0].custom_item_name 
-                                                                : dialog.fields_dict.item_code.get_value();
+                                                    frappe.call({
+                                                        method: 'frappe.client.get_value',
+                                                        args: {
+                                                            doctype: 'Product Bundle',
+                                                            filters: { 'new_item_code': selected_item_code },
+                                                            fieldname: ['name']
+                                                        },
+                                                        callback: function(response) {
+                                                            if (response.message && response.message.name) {
+                                                                const bundle_name = response.message.name;
                     
-                                                            dialog.set_value('item_name', customItemName);
-                                                            dialog.set_value('custom_pack_split', bundle.custom_pack_split || '');
-                                                            dialog.set_value('custom_no_of_sets', bundle.custom_no_of_sets || '');
-                                                            dialog.set_value('custom_bundle_size', selected_dimension);
-                                                            dialog.set_value('custom_part_wise_qty', bundle.custom_part_wise_qty || '');
+                                                                frappe.call({
+                                                                    method: 'frappe.client.get',
+                                                                    args: {
+                                                                        doctype: 'Product Bundle',
+                                                                        name: bundle_name
+                                                                    },
+                                                                    callback: function(res) {
+                                                                        var bundle = res.message;
+                                                                        if (bundle) {
                     
-                                                            if (bundle.items && Array.isArray(bundle.items)) {
-                                                                dialog.fields_dict.pack_sizes_table.df.data = bundle.items.map(pack => ({
-                                                                    item_name: pack.custom_item_name || pack.item_code,
-                                                                    pack_split: pack.custom_pack_split || '',
-                                                                    no_of_sets: pack.custom_no_of_sets || '',
+                                                                            const customItemName = bundle.items?.length > 0 
+                                                                                ? bundle.items[0].custom_item_name 
+                                                                                : dialog.fields_dict.item_code.get_value();
+                    
+                                                                            dialog.set_value('item_name', customItemName);
+                                                                            dialog.set_value('custom_pack_split', bundle.custom_pack_split || '');
+                                                                            dialog.set_value('custom_no_of_sets', bundle.custom_no_of_sets || '');
+                                                                            dialog.set_value('custom_bundle_size', selected_dimension);
+                                                                            dialog.set_value('custom_part_wise_qty', bundle.custom_part_wise_qty || '');
+                    
+                                                                            if (bundle.items && Array.isArray(bundle.items)) {
+                                                                                let pack_sizes_data = [];
+                    
+                                                                                bundle.items.forEach(pack => {
+                                                                                    let allocated_qty = Math.min(
+                                                                                        remaining_data[pack.item_code]?.remaining || 0, 
+                                                                                        (pack.custom_no_of_sets || 0) * (pack.custom_pack_split || 0)
+                                                                                    );
+                    
+                                                                                    if (remaining_data[pack.item_code]?.remaining > 0) {
+                                                                                        pack_sizes_data.push({
+                                                                                            item_name: pack.custom_item_name || pack.item_code,
+                                                                                            pack_split: pack.custom_pack_split || '',
+                                                                                            no_of_sets: pack.custom_no_of_sets || '',
+                                                                                            accepted_qty: allocated_qty,
+                                                                                            batch_id: null
+                                                                                        });
+                                                                                    }
+                                                                                });
+                    
+                                                                                dialog.fields_dict.pack_sizes_table.df.data = pack_sizes_data;
+                                                                                table.refresh();
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                });
+                                                            } else {
+                                                                dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
+                                                                    item_name: pack.custom_item_name || pack.item_name, 
+                                                                    pack_split: pack.pack_split,
+                                                                    no_of_sets: pack.no_of_sets,
                                                                     accepted_qty: 0,
                                                                     batch_id: null
                                                                 }));
                                                                 table.refresh();
                                                             }
                                                         }
-                                                    }
-                                                });
-                                            } else {
-                                                dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
-                                                    item_name: pack.custom_item_name || pack.item_name, 
-                                                    pack_split: pack.pack_split,
-                                                    no_of_sets: pack.no_of_sets,
-                                                    accepted_qty: 0,
-                                                    batch_id: null
-                                                }));
-                                                table.refresh();
+                                                    });
+                                                }
                                             }
-                                        }
-                                    });
+                                        });
+                                    } else {
+                                        dialog.fields_dict.pack_sizes_table.df.data = filtered_data.map(pack => ({
+                                            item_name: pack.custom_item_name || pack.item_name, 
+                                            pack_split: pack.pack_split,
+                                            no_of_sets: pack.no_of_sets,
+                                            accepted_qty: 0,
+                                            batch_id: null
+                                        }));
+                                        table.refresh();
+                                    }
                                 }
                             }
                         }
-                    },
+                    },                    
                     {
                         fieldtype: 'Column Break',
                     },
@@ -230,13 +351,15 @@ frappe.ui.form.on('Purchase Receipt', {
                             const table = dialog.fields_dict.pack_sizes_table.grid;
                             const po_qty = dialog.fields_dict.qty.get_value();
                             const bundle_size = parseFloat(dialog.fields_dict.bundle_size.get_value() || 0);
+                            const selected_item_code = dialog.fields_dict.item_code.get_value();
+                            const purchase_order = frm.doc.items.find(item => item.item_code === selected_item_code)?.purchase_order;
                     
-                            if (dialog.fields_dict.item_code.get_value()) {
+                            if (selected_item_code) {
                                 frappe.call({
                                     method: 'frappe.client.get',
                                     args: {
                                         doctype: 'Item',
-                                        name: dialog.fields_dict.item_code.get_value()
+                                        name: selected_item_code
                                     },
                                     callback: function (res) {
                                         if (res.message) {
@@ -255,12 +378,81 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 }
                     
                                                 dialog.fields_dict.pack_sizes_table.df.data = [{
-                                                    item_name: "",
                                                     accepted_qty: accepted_qty,
-                                                    pending_qty: Math.max(pending_qty, 0)
+                                                    pending_qty: Math.max(pending_qty, 0),
+                                                    pack_split: '',
+                                                    no_of_sets: '',
+                                                    batch_id: null
                                                 }];
-                                                dialog.fields_dict.pack_sizes_table.grid.refresh();
-                                            } else {
+                                                table.refresh();
+                                            } 
+                                            else if (item.item_group === "Product Bundle") {
+
+                                                if (purchase_order) {
+                                                    frappe.call({
+                                                        method: "stellance_customizations.overrides.purchase_receipt.get_remaining_qty",
+                                                        args: {
+                                                            item_code: selected_item_code,
+                                                            purchase_order: purchase_order
+                                                        },
+                                                        callback: function (response) {
+                                                            if (response.message) {
+                                                                const remaining_data = response.message.remaining_qty || {};
+                    
+                                                                frappe.call({
+                                                                    method: 'frappe.client.get_value',
+                                                                    args: {
+                                                                        doctype: 'Product Bundle',
+                                                                        filters: { 'new_item_code': selected_item_code },
+                                                                        fieldname: ['name']
+                                                                    },
+                                                                    callback: function(response) {
+                                                                        if (response.message && response.message.name) {
+                                                                            const bundle_name = response.message.name;
+                    
+                                                                            frappe.call({
+                                                                                method: 'frappe.client.get',
+                                                                                args: {
+                                                                                    doctype: 'Product Bundle',
+                                                                                    name: bundle_name
+                                                                                },
+                                                                                callback: function(res) {
+                                                                                    if (res.message) {
+                                                                                        var bundle = res.message;
+                                                                                        let pack_sizes_data = [];
+                    
+                                                                                        bundle.items.forEach(pack => {
+                                                                                            let allocated_qty = Math.min(
+                                                                                                remaining_data[pack.item_code]?.remaining || 0, 
+                                                                                                (pack.custom_no_of_sets || 0) * (pack.custom_pack_split || 0) * total_packs
+                                                                                            );
+                    
+                                                                                            if (remaining_data[pack.item_code]?.remaining > 0) {
+                                                                                                pack_sizes_data.push({
+                                                                                                    item_name: pack.custom_item_name || selected_item_code,
+                                                                                                    pack_split: pack.custom_pack_split || '',
+                                                                                                    no_of_sets: pack.custom_no_of_sets || '',
+                                                                                                    accepted_qty: allocated_qty,
+                                                                                                    pending_qty: Math.max(remaining_data[pack.item_code]?.remaining - allocated_qty, 0),
+                                                                                                    batch_id: null
+                                                                                                });
+                                                                                            }
+                                                                                        });
+                    
+                                                                                        dialog.fields_dict.pack_sizes_table.df.data = pack_sizes_data;
+                                                                                        table.refresh();
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                });
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            } 
+                                            else {
                                                 table.data.forEach(row => {
                                                     row.accepted_qty = row.no_of_sets * row.pack_split * total_packs || 0;
                                                 });
@@ -300,8 +492,7 @@ frappe.ui.form.on('Purchase Receipt', {
                                 });
                             }
                         }
-                    }
-                    ,
+                    },                                                          
                     {
                         fieldtype: 'Section Break',
                     },
