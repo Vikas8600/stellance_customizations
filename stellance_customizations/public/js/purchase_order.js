@@ -1,10 +1,13 @@
 frappe.ui.form.on('Purchase Order', {
     refresh: function(frm){
         update_status_options(frm)
-        frappe.model.user_settings.save(frm.doctype, "GridView", null).then((r) => {
-            frappe.model.user_settings[frm.doctype] = r.message || r;
-            frm.fields_dict.items.grid.reset_grid();
-        });
+            frappe.model.user_settings.save(frm.doctype, "GridView", null).then((r) => {
+                frappe.model.user_settings[frm.doctype] = r.message || r;
+                frm.fields_dict.items.grid.reset_grid();
+              });
+            frm.fields_dict.custom_purchase_history.$input.on('click', function() {
+                window.open('/app/query-report/Purchase History', '_blank');
+            });
     }
 });
 
