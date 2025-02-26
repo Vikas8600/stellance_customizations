@@ -62,22 +62,25 @@ frappe.ui.form.on('Purchase Receipt', {
                                                 fetch_bundle_sizes_from_product_bundle_in_dialog(dialog, selected_item_code);
                                             }
 
-                                            if (item.custom_pack_size || (item.custom_pack_size && item.custom_product_bundle)) {
-												dialog.fields_dict.bundle_size.df.read_only = 0;
-												dialog.fields_dict.total_packs.df.read_only = 0;
+                                            if (item.custom_is_single_item) {
+                                                // If Single Item, set bundle size options from custom_bundle_size
+                                                dialog.set_df_property('bundle_size', 'options', [item.custom_bundle_size]);
+                                            } else if (item.custom_pack_size || item.custom_product_bundle) {
+                                                dialog.fields_dict.bundle_size.df.read_only = 0;
+                                                dialog.fields_dict.total_packs.df.read_only = 0;
                                                 dialog.is_readonly_mode = false;
-												dialog.refresh();
-
+                                                dialog.refresh();
+                                            
 												// If the item has a child table of pack sizes, populate the Bundle Size dropdown.
-												if (item.custom_item_pack_size && item.custom_item_pack_size.length) {
-													const pack_sizes = item.custom_item_pack_size;
-													const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
-													dialog.set_df_property('bundle_size', 'options', pack_size_options);
-													dialog.pack_sizes = pack_sizes;
-												}
-											} else if (!item.custom_pack_size && !item.custom_product_bundle) {
-												dialog.set_df_property('bundle_size', 'read_only', 1);
-												dialog.set_df_property('total_packs', 'read_only', 1);
+                                                if (item.custom_item_pack_size && item.custom_item_pack_size.length) {
+                                                    const pack_sizes = item.custom_item_pack_size;
+                                                    const pack_size_options = [...new Set(pack_sizes.map(pack => pack.bundle_size).filter(Boolean)), "Add Pack"];
+                                                    dialog.set_df_property('bundle_size', 'options', pack_size_options);
+                                                    dialog.pack_sizes = pack_sizes;
+                                                }
+                                            } else {
+                                                dialog.set_df_property('bundle_size', 'read_only', 1);
+                                                dialog.set_df_property('total_packs', 'read_only', 1);
                                                 dialog.is_readonly_mode = true;
 												dialog.refresh();
 
@@ -226,45 +229,79 @@ frappe.ui.form.on('Purchase Receipt', {
                             const total_packs = this.get_value();
                             const table = dialog.fields_dict.pack_sizes_table.grid;
                             const po_qty = dialog.fields_dict.qty.get_value();
-
-                            table.data.forEach(row => {
-                                row.accepted_qty = row.no_of_sets * row.pack_split * total_packs || 0;
-                            });
-
-                            table.refresh();
-
-                            let total_sum = 0;
-                            table.data.forEach(row => {
-                                total_sum += (row.no_of_sets * row.pack_split) || 0;
-                            });
-                            console.log("Total Sum:", total_sum);
+                            const bundle_size = parseFloat(dialog.fields_dict.bundle_size.get_value() || 0);
                     
-                            let has_negative_pending_qty = false;
-
-                            table.data.forEach(row => {
-                                const row_sum = (row.no_of_sets * row.pack_split) || 0; 
-                                const accepted_qty = row.accepted_qty || 0; 
-                                const proportional_qty = (po_qty * row_sum) / total_sum;
-                                const calculated_pending_qty = proportional_qty - accepted_qty;  
-                                if (calculated_pending_qty < 0) {
-                                    has_negative_pending_qty = true;
-                                    // calculated_pending_qty = 0; 
-                                }      
-                                row.pending_qty = calculated_pending_qty;          
-                                // row.pending_qty = Math.max(Math.round(calculated_pending_qty), 0);
-                                console.log(row.pending_qty);
-                            });
+                            if (dialog.fields_dict.item_code.get_value()) {
+                                frappe.call({
+                                    method: 'frappe.client.get',
+                                    args: {
+                                        doctype: 'Item',
+                                        name: dialog.fields_dict.item_code.get_value()
+                                    },
+                                    callback: function (res) {
+                                        if (res.message) {
+                                            const item = res.message;
                     
-                            table.refresh();
-                            if (has_negative_pending_qty) {
-                                frappe.msgprint({
-                                    title: __('Warning'),
-                                    message: __('No of Packs is too high.'),
-                                    indicator: 'red',
+                                            if (item.custom_is_single_item) {
+                                                let accepted_qty = bundle_size * total_packs;
+                                                let pending_qty = po_qty - accepted_qty;
+                    
+                                                if (pending_qty < 0) {
+                                                    frappe.msgprint({
+                                                        title: __('Warning'),
+                                                        message: __('No of Packs is too high.'),
+                                                        indicator: 'red',
+                                                    });
+                                                }
+                    
+                                                dialog.fields_dict.pack_sizes_table.df.data = [{
+                                                    item_name: "",
+                                                    accepted_qty: accepted_qty,
+                                                    pending_qty: Math.max(pending_qty, 0)
+                                                }];
+                                                dialog.fields_dict.pack_sizes_table.grid.refresh();
+                                            } else {
+                                                table.data.forEach(row => {
+                                                    row.accepted_qty = row.no_of_sets * row.pack_split * total_packs || 0;
+                                                });
+                    
+                                                table.refresh();
+                    
+                                                let total_sum = 0;
+                                                table.data.forEach(row => {
+                                                    total_sum += (row.no_of_sets * row.pack_split) || 0;
+                                                });
+                    
+                                                let has_negative_pending_qty = false;
+                    
+                                                table.data.forEach(row => {
+                                                    const row_sum = (row.no_of_sets * row.pack_split) || 0;
+                                                    const accepted_qty = row.accepted_qty || 0;
+                                                    const proportional_qty = (po_qty * row_sum) / total_sum;
+                                                    const calculated_pending_qty = proportional_qty - accepted_qty;
+                    
+                                                    if (calculated_pending_qty < 0) {
+                                                        has_negative_pending_qty = true;
+                                                    }
+                                                    row.pending_qty = calculated_pending_qty;
+                                                });
+                    
+                                                table.refresh();
+                                                if (has_negative_pending_qty) {
+                                                    frappe.msgprint({
+                                                        title: __('Warning'),
+                                                        message: __('No of Packs is too high.'),
+                                                        indicator: 'red',
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
                                 });
                             }
-                        },
-                    },
+                        }
+                    }
+                    ,
                     {
                         fieldtype: 'Section Break',
                     },
@@ -440,16 +477,17 @@ frappe.ui.form.on('Purchase Receipt', {
                                             doctype: 'Product Bundle',
                                             filters: { 'new_item_code': values.item_code },
                                         },
-                                        callback: function (response) {
+                                        callback: function (response) {                               
                                             if (response.message && response.message.items) {
                                                 const bundle_items = response.message.items;
-
-                                                batch_rows.forEach(row => {
+                                                let original_po = purchase_order_item ? purchase_order_item.purchase_order : "";
+                               
+                                                batch_rows.forEach(row => {                              
                                                     const matching_part = bundle_items.find(part =>
                                                         part.custom_item_name && part.custom_item_name.trim() === row.item_name.trim()
                                                     );
-
-                                                    if (matching_part) {
+                                
+                                                    if (matching_part) {                          
                                                         frm.add_child('items', {
                                                             item_code: matching_part.item_code,
                                                             item_name: matching_part.custom_item_name || matching_part.item_name,
@@ -465,26 +503,26 @@ frappe.ui.form.on('Purchase Receipt', {
                                                             custom_no_of_packs: total_packs,
                                                             custom_pack_size: pack_size,
                                                             custom_bundle_sizeuom: pack_size,
-                                                            purchase_order_item: purchase_order_item ? purchase_order_item.purchase_order_item : "",
+                                                            purchase_order: original_po, // Assign only `purchase_order`
                                                             custom_prev_quality: purchase_order_item ? purchase_order_item.custom_prev_quality : ""
                                                         });
-                                                    }
+                                                    } 
                                                 });
                                                 let bundle_item_index = frm.doc.items.findIndex(item => item.item_code === values.item_code);
                                                 if (bundle_item_index !== -1) {
                                                     frm.doc.items.splice(bundle_item_index, 1);
-                                                }
-
+                                                } 
+                                
                                                 frm.refresh_field('items');
                                             } else {
                                                 frappe.msgprint(__('No items found in the Product Bundle.'));
                                             }
                                         }
                                     });
-
+                                
                                     return;
                                 }
-
+                                
                                 if (dialog.is_readonly_mode) {
                                     if (existing_item_row) {
                                         existing_item_row.batch_no = batch_rows[0].batch_id;
