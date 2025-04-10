@@ -37,6 +37,7 @@ doctype_js = {
             "Sales Order": "public/js/sales_order.js",
             "Quotation": "public/js/quotation.js",
             "Product Bundle": "public/js/product_bundle.js",
+            "Opportunity": "public/js/opportunity.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

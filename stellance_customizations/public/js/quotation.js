@@ -8,3 +8,16 @@ frappe.ui.form.on('Quotation', {
         });
     }
 });
+
+
+frappe.ui.form.on("Quotation", {
+    refresh: function (frm) {
+        frm.add_custom_button(
+            __("Project Template"),
+            function () {
+                frappe.new_doc("Project Template");
+            },
+            __("Create")
+        );
+    },
+});
