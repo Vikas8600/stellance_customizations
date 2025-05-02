@@ -38,6 +38,7 @@ doctype_js = {
             "Quotation": "public/js/quotation.js",
             "Product Bundle": "public/js/product_bundle.js",
             "Opportunity": "public/js/opportunity.js",
+            "BOM": "public/js/bom.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -132,13 +133,11 @@ doctype_js = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    "BOM": {
+        "validate": "stellance_customizations.overrides.bom.custom_set_bom_item_rates"
+    }
+}
 
 # Scheduled Tasks
 # ---------------

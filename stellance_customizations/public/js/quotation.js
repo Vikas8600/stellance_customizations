@@ -13,9 +13,9 @@ frappe.ui.form.on('Quotation', {
 frappe.ui.form.on("Quotation", {
     refresh: function (frm) {
         frm.add_custom_button(
-            __("Project Template"),
+            __("Project"),
             function () {
-                frappe.new_doc("Project Template");
+                frappe.new_doc("Project");
             },
             __("Create")
         );

@@ -12,6 +12,8 @@ def get_bom_items(bom_name):
             "rate": d.rate,
             "amount": d.amount,
             "base_rate":d.base_rate,
-            "base_amount":d.base_amount
+            "base_amount":d.base_amount,
+            "margin":d.custom_margin,
+            "last_purchase_rate":d.custom_last_purchase_rate
         })
     return items
