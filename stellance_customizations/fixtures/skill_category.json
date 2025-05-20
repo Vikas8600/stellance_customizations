@@ -1,0 +1,23 @@
+[
+ {
+  "category_name": "Skilled",
+  "docstatus": 0,
+  "doctype": "Skill Category",
+  "modified": "2025-05-20 11:19:33.810313",
+  "name": "Skilled"
+ },
+ {
+  "category_name": "Unskilled",
+  "docstatus": 0,
+  "doctype": "Skill Category",
+  "modified": "2025-05-20 11:19:53.368536",
+  "name": "Unskilled"
+ },
+ {
+  "category_name": "Semi skilled",
+  "docstatus": 0,
+  "doctype": "Skill Category",
+  "modified": "2025-05-20 11:20:16.451957",
+  "name": "Semi skilled"
+ }
+]

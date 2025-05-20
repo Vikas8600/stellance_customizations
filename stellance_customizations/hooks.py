@@ -136,8 +136,21 @@ doctype_js = {
 doc_events = {
     "BOM": {
         "validate": "stellance_customizations.overrides.bom.custom_set_bom_item_rates"
-    }
+    },
+    "Employee": {
+        "before_save": "stellance_customizations.overrides.employee.before_save",
+        
+    },
 }
+
+
+fixtures = [
+
+    {"dt":"Skill Category"},
+    {"dt":"Zone"},
+
+
+]
 
 # Scheduled Tasks
 # ---------------
