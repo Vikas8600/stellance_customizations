@@ -117,3 +117,76 @@ function calculate_qty(frm, cdt, cdn) {
         frm.refresh_field('items'); 
     }
 }
+
+
+function update_last_row_purchase_history(frm) {
+    const last_row = (frm.doc.items || []).slice(-1)[0];
+    if (last_row && last_row.item_code) {
+        frappe.call({
+            method: 'stellance_customizations.overrides.bom.get_purchase_history',
+            args: {
+                item_code: last_row.item_code
+            },
+            callback: function(r) {
+                const data = r.message?.data || r.message;
+
+                let html = `<div style='margin-bottom: 10px; font-weight: bold; font-size: 14px;'>
+                    Item: ${last_row.item_name}
+                </div>`;
+
+                html += `<div style='overflow: auto; max-height: 300px; border: 1px solid #ccc;'>
+                    <table class='table table-bordered' style='min-width: 1200px; border-collapse: collapse; text-align: left;'>
+                        <thead>
+                            <tr style='background-color: #f2f2f2; position: sticky; top: 0; z-index: 1;'>
+                                <th style='padding: 8px; white-space: nowrap;'>Manufacturer</th>
+                                <th style='padding: 8px;'>Factory Location</th>
+                                <th style='padding: 8px; white-space: nowrap;'>Date of Quote / Purchase</th>
+                                <th style='padding: 8px; white-space: nowrap;'>Material Name</th>
+                                <th style='padding: 8px; white-space: nowrap;'>Total Qty</th>
+                                <th style='padding: 8px; white-space: nowrap;'>Rate per UOM</th>
+                                <th style='padding: 8px; white-space: nowrap;'>PO</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                if (data && Array.isArray(data) && data.length > 0) {
+                    data.forEach(d => {
+                        const po_link = `<a href="/app/purchase-order/${d.po}" target="_blank">${d.po}</a>`;
+                        const supplier_link = `<a href="/app/supplier/${encodeURIComponent(d.manufacturer)}" target="_blank">${d.manufacturer}</a>`;
+                        const item_link = `<a href="/app/item/${encodeURIComponent(d.item_code)}" target="_blank">${d.material_name}</a>`;
+
+                        html += `<tr>
+                            <td style='padding: 8px; white-space: nowrap;'>${supplier_link}</td>
+                            <td style='padding: 8px;'>${d.factory_location || '-'}</td>
+                            <td style='padding: 8px; white-space: nowrap;'>${frappe.datetime.str_to_user(d.posting_date)}</td>
+                            <td style='padding: 8px; white-space: nowrap;'>${item_link}</td>
+                            <td style='padding: 8px; white-space: nowrap;'>${d.qty}</td>
+                            <td style='padding: 8px; white-space: nowrap;'>${d.rate}</td>
+                            <td style='padding: 8px; white-space: nowrap;'>${po_link}</td>
+                        </tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan='7' style='padding: 8px;'>No purchase history found.</td></tr>`;
+                }
+
+                html += `</tbody></table></div>`;
+                frm.set_df_property('custom_purchase_history_html', 'options', html);
+            }
+        });
+    } else {
+        frm.set_df_property('custom_purchase_history_html', 'options', '<b>No item code in last row.</b>');
+    }
+}
+
+
+frappe.ui.form.on('Purchase Order', {
+    refresh: function(frm) {
+        update_last_row_purchase_history(frm);
+    }
+});
+
+frappe.ui.form.on('Purchase Order Item', {
+    item_code: function(frm, cdt, cdn) {
+        update_last_row_purchase_history(frm);
+    }
+});

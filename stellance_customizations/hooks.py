@@ -152,6 +152,8 @@ fixtures = [
 
 ]
 
+after_migrate = ["stellance_customizations.overrides.bom.delete_lead_employee_field"]
+
 # Scheduled Tasks
 # ---------------
 
