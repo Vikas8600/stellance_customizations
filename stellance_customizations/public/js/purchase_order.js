@@ -128,49 +128,138 @@ function update_last_row_purchase_history(frm) {
                 item_code: last_row.item_code
             },
             callback: function(r) {
-                const data = r.message?.data || r.message;
+                const data = r.message?.data || r.message || [];
+                const uniqueManufacturers = [...new Set(data.map(d => d.manufacturer))];
 
-                let html = `<div style='margin-bottom: 10px; font-weight: bold; font-size: 14px;'>
-                    Item: ${last_row.item_name}
-                </div>`;
+                // Prepare row HTML separately
+                const rowHtml = (d) => `
+                    <tr data-manufacturer="${d.manufacturer}" data-date="${d.posting_date}">
+                        <td>${d.manufacturer}</td>
+                        <td>${d.factory_location || '-'}</td>
+                        <td>${frappe.datetime.str_to_user(d.posting_date)}</td>
+                        <td>${d.material_name}</td>
+                        <td>${d.qty}</td>
+                        <td>${d.rate}</td>
+                    </tr>`;
 
-                html += `<div style='overflow: auto; max-height: 300px; border: 1px solid #ccc;'>
-                    <table class='table table-bordered' style='min-width: 1200px; border-collapse: collapse; text-align: left;'>
-                        <thead>
-                            <tr style='background-color: #f2f2f2; position: sticky; top: 0; z-index: 1;'>
-                                <th style='padding: 8px; white-space: nowrap;'>Manufacturer</th>
-                                <th style='padding: 8px;'>Factory Location</th>
-                                <th style='padding: 8px; white-space: nowrap;'>Date of Quote / Purchase</th>
-                                <th style='padding: 8px; white-space: nowrap;'>Material Name</th>
-                                <th style='padding: 8px; white-space: nowrap;'>Total Qty</th>
-                                <th style='padding: 8px; white-space: nowrap;'>Rate per UOM</th>
-                                <th style='padding: 8px; white-space: nowrap;'>PO</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
+                let html = `
+                    <div class="form-group">
+                        <label><strong>Item:</strong> ${last_row.item_name}</label>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <label>Filter by Manufacturer</label>
+                                <select id="manufacturer-filter" class="form-control">
+                                    <option value="">All</option>
+                                    ${uniqueManufacturers.map(m => `<option value="${m}">${m}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label>From Date</label>
+                                <input type="date" id="from-date-filter" class="form-control" />
+                            </div>
+                            <div class="col-sm-4">
+                                <label>To Date</label>
+                                <input type="date" id="to-date-filter" class="form-control" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <table id="purchase-history-table" class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Manufacturer</th>
+                                    <th>Factory Location</th>
+                                    <th>Date of Quote / Purchase</th>
+                                    <th>Material Name</th>
+                                    <th>Total Qty</th>
+                                    <th>Rate per UOM</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchase-history-body">
+                                <!-- dynamic rows -->
+                            </tbody>
+                        </table>
+                        <div class="pagination-controls" style="margin-top: 10px; text-align: right;">
+                            <button class="btn btn-sm btn-default" id="prev-page">Previous</button>
+                            <span id="page-info" style="margin: 0 10px;"></span>
+                            <button class="btn btn-sm btn-default" id="next-page">Next</button>
+                        </div>
+                    </div>
+                `;
 
-                if (data && Array.isArray(data) && data.length > 0) {
-                    data.forEach(d => {
-                        const po_link = `<a href="/app/purchase-order/${d.po}" target="_blank">${d.po}</a>`;
-                        const supplier_link = `<a href="/app/supplier/${encodeURIComponent(d.manufacturer)}" target="_blank">${d.manufacturer}</a>`;
-                        const item_link = `<a href="/app/item/${encodeURIComponent(d.item_code)}" target="_blank">${d.material_name}</a>`;
-
-                        html += `<tr>
-                            <td style='padding: 8px; white-space: nowrap;'>${supplier_link}</td>
-                            <td style='padding: 8px;'>${d.factory_location || '-'}</td>
-                            <td style='padding: 8px; white-space: nowrap;'>${frappe.datetime.str_to_user(d.posting_date)}</td>
-                            <td style='padding: 8px; white-space: nowrap;'>${item_link}</td>
-                            <td style='padding: 8px; white-space: nowrap;'>${d.qty}</td>
-                            <td style='padding: 8px; white-space: nowrap;'>${d.rate}</td>
-                            <td style='padding: 8px; white-space: nowrap;'>${po_link}</td>
-                        </tr>`;
-                    });
-                } else {
-                    html += `<tr><td colspan='7' style='padding: 8px;'>No purchase history found.</td></tr>`;
-                }
-
-                html += `</tbody></table></div>`;
                 frm.set_df_property('custom_purchase_history_html', 'options', html);
+
+                setTimeout(() => {
+                    const manufacturerFilter = document.getElementById("manufacturer-filter");
+                    const fromDateFilter = document.getElementById("from-date-filter");
+                    const toDateFilter = document.getElementById("to-date-filter");
+                    const tbody = document.getElementById("purchase-history-body");
+                    const prevBtn = document.getElementById("prev-page");
+                    const nextBtn = document.getElementById("next-page");
+                    const pageInfo = document.getElementById("page-info");
+
+                    let filtered = [...data];
+                    let currentPage = 1;
+                    const rowsPerPage = 5;
+
+                    const renderTable = () => {
+                        tbody.innerHTML = "";
+                        const start = (currentPage - 1) * rowsPerPage;
+                        const end = start + rowsPerPage;
+                        const rows = filtered.slice(start, end);
+                        if (rows.length > 0) {
+                            rows.forEach(d => {
+                                tbody.innerHTML += rowHtml(d);
+                            });
+                        } else {
+                            tbody.innerHTML = `<tr><td colspan="6">No purchase history found.</td></tr>`;
+                        }
+
+                        const totalPages = Math.ceil(filtered.length / rowsPerPage);
+                        pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
+                        prevBtn.disabled = currentPage === 1;
+                        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+                    };
+
+                    const applyFilter = () => {
+                        const selectedManufacturer = manufacturerFilter.value;
+                        const fromDate = fromDateFilter.value;
+                        const toDate = toDateFilter.value;
+
+                        filtered = data.filter(d => {
+                            let match = true;
+                            if (selectedManufacturer && d.manufacturer !== selectedManufacturer) match = false;
+                            if (fromDate && d.posting_date < fromDate) match = false;
+                            if (toDate && d.posting_date > toDate) match = false;
+                            return match;
+                        });
+                        currentPage = 1;
+                        renderTable();
+                    };
+
+                    manufacturerFilter.addEventListener("change", applyFilter);
+                    fromDateFilter.addEventListener("change", applyFilter);
+                    toDateFilter.addEventListener("change", applyFilter);
+
+                    prevBtn.addEventListener("click", () => {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            renderTable();
+                        }
+                    });
+
+                    nextBtn.addEventListener("click", () => {
+                        const totalPages = Math.ceil(filtered.length / rowsPerPage);
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            renderTable();
+                        }
+                    });
+
+                    renderTable();
+                }, 100);
             }
         });
     } else {

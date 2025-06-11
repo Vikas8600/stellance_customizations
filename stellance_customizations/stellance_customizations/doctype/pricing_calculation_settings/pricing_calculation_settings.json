@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-05-23 15:57:05.044346",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "loading_unloading_cost",
+  "holding_cost",
+  "client_category_rates",
+  "payment_terms_rates",
+  "quantity_discount_rates",
+  "credit_rating_margins"
+ ],
+ "fields": [
+  {
+   "fieldname": "loading_unloading_cost",
+   "fieldtype": "Table",
+   "label": "Loading Unloading Cost",
+   "options": "Loading Unloading Cost"
+  },
+  {
+   "fieldname": "holding_cost",
+   "fieldtype": "Table",
+   "label": "Holding Cost",
+   "options": "Holding Cost Table"
+  },
+  {
+   "fieldname": "client_category_rates",
+   "fieldtype": "Table",
+   "label": "Client Category Rates",
+   "options": "Client Category Rates"
+  },
+  {
+   "fieldname": "payment_terms_rates",
+   "fieldtype": "Table",
+   "label": "Payment Terms Rates",
+   "options": "Payment Terms Rates"
+  },
+  {
+   "fieldname": "quantity_discount_rates",
+   "fieldtype": "Table",
+   "label": "Quantity Discount Rates",
+   "options": "Quantity Discount Rates"
+  },
+  {
+   "fieldname": "credit_rating_margins",
+   "fieldtype": "Table",
+   "label": "Credit Rating Margins",
+   "options": "Credit Rating Margins"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-05-23 15:59:18.758423",
+ "modified_by": "Administrator",
+ "module": "stellance_customizations",
+ "name": "Pricing Calculation Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
