@@ -28,6 +28,9 @@ frappe.ui.form.on('Opportunity', {
                     }
                 }
             });
+        } else {
+            frm.clear_table("items");
+            frm.refresh_field("items");
         }
     }
 });

@@ -89,9 +89,17 @@ frappe.ui.form.on("Quotation Item", {
     },
     qty: function (frm, cdt, cdn) {
         frappe.after_ajax(() => calculate_suggested_price(frm, cdt, cdn));
+    },
+});
+frappe.ui.form.on("Quotation", {
+    before_save: function (frm) {
+        frappe.after_ajax(() => {
+            (frm.doc.items || []).forEach(row => {
+                calculate_suggested_price(frm, row.doctype, row.name);
+            });
+        });
     }
 });
-
 function calculate_suggested_price(frm, cdt, cdn) {
     const item = locals[cdt][cdn];
     const supply_type = frm.doc.custom_supply_type;
@@ -108,7 +116,8 @@ function calculate_suggested_price(frm, cdt, cdn) {
             item_code: item.item_code,
             qty: item.qty,
             supply_type: supply_type,
-            customer: customer
+            customer: customer,
+            amount: item.amount
         },
         callback: function (r) {
             if (r.message) {
@@ -117,6 +126,17 @@ function calculate_suggested_price(frm, cdt, cdn) {
                 } else {
                     frappe.model.set_value(cdt, cdn, "custom_suggested_sales_price", r.message);
                 }
+            if (r.message.html) {
+                let d = new frappe.ui.Dialog({
+                    title: "Suggested Price Details",
+                    primary_action_label: "Close",
+                    primary_action() {
+                        d.hide();
+                    }
+                });
+                d.body.innerHTML = r.message.html;
+d.show();
+            }
            // Generate table HTML
         let html = `<table class="table table-bordered" style="margin-top: 10px;">
             <thead>
