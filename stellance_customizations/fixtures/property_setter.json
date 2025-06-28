@@ -100,5 +100,22 @@
         "property_type": "Check",
         "value": "0",
         "doctype": "Property Setter"
+    },
+    {
+        "name": "Lead-fax-hidden",
+        "owner": "Administrator",
+        "creation": "2025-02-04 11:49:29.855821",
+        "modified": "2025-06-28 12:24:10.948030",
+        "modified_by": "Administrator",
+        "docstatus": 0,
+        "idx": 0,
+        "is_system_generated": 0,
+        "doctype_or_field": "DocField",
+        "doc_type": "Lead",
+        "field_name": "fax",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "0",
+        "doctype": "Property Setter"
     }
 ]
