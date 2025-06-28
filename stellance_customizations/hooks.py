@@ -149,12 +149,18 @@ fixtures = [
 
     {"dt":"Skill Category"},
     {"dt":"Zone"},
+    # {
+    #     "doctype": "Property Setter",
+    #     "filters": [
+    #         ["name", "in", ["Lead-main-field_order"]]
+    #     ]
+    # }
+
 
 
 ]
 
 after_migrate = ["stellance_customizations.overrides.bom.delete_lead_employee_field",
-                 "stellance_customizations.overrides.apply_custom_json.apply_json_customizations"
 ]
 
 # Scheduled Tasks
