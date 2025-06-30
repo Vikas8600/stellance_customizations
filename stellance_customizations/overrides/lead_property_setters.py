@@ -94,7 +94,7 @@ def setup_lead_property_setters():
     deleted_fields = ["custom_lead_status"]
     for field in deleted_fields:
         ps_name = f"Lead-{field}-hidden"
-        if frappe.db.exists("Property Setter", ps_name):
-            frappe.delete_doc("Property Setter", ps_name, ignore_permissions=True)
+        if frappe.db.exists("Custom Field", ps_name):
+            frappe.delete_doc("Custom Field", ps_name, ignore_permissions=True)
 
     frappe.db.commit()
