@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "creation": "2026-03-03 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "leave_type",
+  "monthly_leaves"
+ ],
+ "fields": [
+  {
+   "columns": 6,
+   "fieldname": "leave_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Leave Type",
+   "options": "Leave Type",
+   "reqd": 1
+  },
+  {
+   "columns": 6,
+   "fieldname": "monthly_leaves",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Monthly Leaves",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-03-03 15:15:57.180827",
+ "modified_by": "Administrator",
+ "module": "stellance_customizations",
+ "name": "Leave Group Leave Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

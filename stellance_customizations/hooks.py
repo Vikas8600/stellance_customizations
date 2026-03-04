@@ -168,23 +168,11 @@ after_migrate = ["stellance_customizations.overrides.bom.delete_lead_employee_fi
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"stellance_customizations.tasks.all"
-# 	],
-# 	"daily": [
-# 		"stellance_customizations.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"stellance_customizations.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"stellance_customizations.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"stellance_customizations.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"monthly": [
+		"stellance_customizations.leave_management.allocate_monthly_leaves"
+	],
+}
 
 # Testing
 # -------
