@@ -5,11 +5,12 @@
  "engine": "InnoDB",
  "field_order": [
   "leave_type",
-  "monthly_leaves"
+  "allocation_type",
+  "leaves"
  ],
  "fields": [
   {
-   "columns": 6,
+   "columns": 4,
    "fieldname": "leave_type",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -18,11 +19,22 @@
    "reqd": 1
   },
   {
-   "columns": 6,
-   "fieldname": "monthly_leaves",
+   "columns": 4,
+   "default": "Monthly",
+   "fieldname": "allocation_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Allocation Type",
+   "options": "Monthly\nYearly",
+   "reqd": 1
+  },
+  {
+   "columns": 4,
+   "description": "Enter monthly or yearly count. Yearly values are divided by 12 for monthly allocation.",
+   "fieldname": "leaves",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Monthly Leaves",
+   "label": "Leaves",
    "reqd": 1
   }
  ],

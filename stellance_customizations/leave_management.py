@@ -73,6 +73,8 @@ def allocate_monthly_leaves():
 			):
 				continue
 
+			monthly_qty = row.leaves / 12 if row.allocation_type == "Yearly" else row.leaves
+
 			try:
 				allocation = frappe.get_doc(
 					{
@@ -81,14 +83,14 @@ def allocate_monthly_leaves():
 						"leave_type": row.leave_type,
 						"from_date": from_date,
 						"to_date": expiry_date,
-						"new_leaves_allocated": row.monthly_leaves,
+						"new_leaves_allocated": monthly_qty,
 						"carry_forward": 0,
 					}
 				)
 				allocation.insert(ignore_permissions=True)
 				allocation.submit()
 				frappe.logger().info(
-					f"Leave Allocation: {row.monthly_leaves} {row.leave_type} → "
+					f"Leave Allocation: {monthly_qty} {row.leave_type} → "
 					f"{emp.employee_name} (valid {from_date} to {expiry_date})"
 				)
 			except Exception:
