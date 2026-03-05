@@ -149,14 +149,16 @@ fixtures = [
 
     {"dt":"Skill Category"},
     {"dt":"Zone"},
+    {
+        "dt": "Custom Field",
+        "filters": [["module", "=", "stellance_customizations"]]
+    },
     # {
     #     "doctype": "Property Setter",
     #     "filters": [
     #         ["name", "in", ["Lead-main-field_order"]]
-    #     ]
+    #         ]
     # }
-
-
 
 ]
 
