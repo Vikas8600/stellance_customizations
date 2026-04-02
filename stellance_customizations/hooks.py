@@ -140,7 +140,9 @@ doc_events = {
     },
     "Employee": {
         "before_save": "stellance_customizations.overrides.employee.before_save",
-        
+    },
+    "Compensatory Leave Request": {
+        "on_submit": "stellance_customizations.overrides.compensatory_leave.set_compoff_leave_validity",
     },
 }
 

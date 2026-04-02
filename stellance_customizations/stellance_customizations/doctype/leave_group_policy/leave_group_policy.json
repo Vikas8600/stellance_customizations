@@ -8,6 +8,7 @@
  "field_order": [
   "group_name",
   "carry_forward_months",
+  "compoff_validity_months",
   "section_leave_details",
   "leave_allocations"
  ],
@@ -22,11 +23,20 @@
   },
   {
    "default": "6",
-   "description": "Number of months from allocation date that leaves remain valid (always capped at March 31st of the financial year)",
+   "description": "Number of months from allocation date that regular leaves remain valid (always capped at March 31st of the financial year)",
    "fieldname": "carry_forward_months",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Carry Forward Months",
+   "reqd": 1
+  },
+  {
+   "default": "6",
+   "description": "Number of months from work date that comp-off leaves remain valid (always capped at March 31st of the financial year)",
+   "fieldname": "compoff_validity_months",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Comp-off Validity Months",
    "reqd": 1
   },
   {
