@@ -1,11 +1,12 @@
 import frappe
 from frappe.utils import nowdate
+from stellance_customizations.leave_management import allocate_joining_month_leaves
 
-def before_save(self,method):
+def before_save(self, method):
     set_min_wages(self)
-    # set_defaults(self)
-    # populate_from_default_template(self)
-    # populate_employee_documents_from_template(self)
+
+def after_save(self, method):
+    allocate_joining_month_leaves(self)
 
 
 
