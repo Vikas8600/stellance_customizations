@@ -4,8 +4,9 @@ from collections import defaultdict
 import frappe
 from frappe.utils import getdate
 
-OWN_EMPLOYMENT_TYPES = {"Permanent", "Full-time"}
 SUPERVISOR_DESIGNATION = "site supervisor"
+WORKER_DESIGNATION    = "workers"
+CONTRACTOR_DESIGNATION = "sub-contractor"
 
 
 def execute(filters=None):
@@ -58,10 +59,9 @@ def _get_data(month, year, days_in_month):
 			a.employee,
 			a.employee_name,
 			p.project_name AS site,
-			COALESCE(e.employment_type, '')                     AS employment_type,
-			COALESCE(e.designation, '')                         AS designation
+			COALESCE(NULLIF(sae.designation, ''), e.designation, '') AS designation
 		FROM `tabAttendance` a
-		LEFT JOIN `tabEmployee` e ON a.employee = e.name
+		LEFT JOIN `tabEmployee` e ON e.name = a.employee
 		LEFT JOIN `tabSite Assignment Employee` sae ON sae.employee = a.employee
 		LEFT JOIN `tabSite Assignment` sa
 			ON sa.name = sae.parent
@@ -98,9 +98,9 @@ def _get_data(month, year, days_in_month):
 				bucket["supervisor_ids"].add(emp)
 				if name:
 					bucket["supervisors"].append(name)
-		elif r.employment_type in OWN_EMPLOYMENT_TYPES:
+		elif desig == WORKER_DESIGNATION:
 			bucket["worker_ids"].add(emp)
-		else:
+		elif desig == CONTRACTOR_DESIGNATION:
 			bucket["contractor_ids"].add(emp)
 
 	# Daily totals: unique employees per day across all sites
