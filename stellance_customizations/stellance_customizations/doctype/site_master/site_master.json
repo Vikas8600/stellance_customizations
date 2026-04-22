@@ -16,8 +16,7 @@
   {
    "fieldname": "site_name",
    "fieldtype": "Data",
-   "label": "Site Name",
-   "reqd": 1
+   "label": "Site Name"
   },
   {
    "fieldname": "address_line_1",
@@ -32,24 +31,26 @@
   {
    "fieldname": "city",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "City"
   },
   {
    "fieldname": "state",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "State"
   },
   {
    "fieldname": "site_location",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Site Location"
   }
  ],
- "autoname": "field:site_name",
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-21 17:42:34.077132",
+ "modified": "2026-04-22 11:33:05.532798",
  "modified_by": "Administrator",
  "module": "stellance_customizations",
  "name": "Site Master",
