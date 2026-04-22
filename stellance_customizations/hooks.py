@@ -126,9 +126,10 @@ doctype_js = {
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
+override_doctype_class = {
+    "Customer": "stellance_customizations.overrides.customer.CustomCustomer"
 # 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+}
 
 # Document Events
 # ---------------

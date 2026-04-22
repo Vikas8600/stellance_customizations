@@ -6,12 +6,10 @@
  "engine": "InnoDB",
  "field_order": [
   "site_name",
-  "customer",
   "address_line_1",
   "address_line_2",
   "city",
-  "state",
-  "site_location"
+  "state"
  ],
  "fields": [
   {
@@ -42,26 +40,12 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "State"
-  },
-  {
-   "fieldname": "site_location",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Site Location"
-  },
-  {
-   "fieldname": "customer",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Customer",
-   "options": "Customer",
-   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-22 12:36:41.386743",
+ "modified": "2026-04-22 14:34:01.159233",
  "modified_by": "Administrator",
  "module": "stellance_customizations",
  "name": "Site Master",
