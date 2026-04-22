@@ -1,11 +1,12 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "autoname": "field:site_name",
  "creation": "2026-04-21 17:39:58.911677",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "site_name",
+  "customer",
   "address_line_1",
   "address_line_2",
   "city",
@@ -16,7 +17,9 @@
   {
    "fieldname": "site_name",
    "fieldtype": "Data",
-   "label": "Site Name"
+   "label": "Site Name",
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "address_line_1",
@@ -45,15 +48,24 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Site Location"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-22 11:33:05.532798",
+ "modified": "2026-04-22 12:36:41.386743",
  "modified_by": "Administrator",
  "module": "stellance_customizations",
  "name": "Site Master",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
