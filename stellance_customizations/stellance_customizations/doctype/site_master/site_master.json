@@ -15,6 +15,7 @@
   {
    "fieldname": "site_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Site Name",
    "reqd": 1,
    "unique": 1
