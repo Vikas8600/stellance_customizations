@@ -1,6 +1,40 @@
 
 
+function fetchGroupAndSubCategory(frm) {
+	const source = frm.doc.opportunity_from;
+	const party = frm.doc.party_name;
+	if (!party) return;
+
+	if (source === "Lead") {
+		frappe.db.get_value(
+			"Lead",
+			party,
+			["custom_customer_group", "custom_sub_category"],
+			function (data) {
+				if (!data) return;
+				if (data.custom_customer_group) frm.set_value("customer_group", data.custom_customer_group);
+				if (data.custom_sub_category) frm.set_value("custom_sub_category", data.custom_sub_category);
+			}
+		);
+	} else if (source === "Prospect") {
+		frappe.db.get_value(
+			"Prospect",
+			party,
+			["customer_group", "custom_sub_category"],
+			function (data) {
+				if (!data) return;
+				if (data.customer_group) frm.set_value("customer_group", data.customer_group);
+				if (data.custom_sub_category) frm.set_value("custom_sub_category", data.custom_sub_category);
+			}
+		);
+	}
+}
+
 frappe.ui.form.on('Opportunity', {
+    party_name: function (frm) {
+        fetchGroupAndSubCategory(frm);
+    },
+
     custom_bom: function(frm) {
         if (frm.doc.custom_bom) {
             frappe.call({

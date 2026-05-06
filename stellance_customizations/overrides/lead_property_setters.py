@@ -61,16 +61,26 @@ def setup_lead_property_setters():
             "value": "0",
             "name": "Lead-other_info_tab-hidden"
         },
-         {
-        "name": "Lead-fax-hidden",
-        "doctype_or_field": "DocField",
-        "doc_type": "Lead",
-        "field_name": "fax",
-        "property": "hidden",
-        "property_type": "Check",
-        "value": "0",
-        "doctype": "Property Setter"
-    }
+        {
+            "name": "Lead-fax-hidden",
+            "doctype_or_field": "DocField",
+            "doc_type": "Lead",
+            "field_name": "fax",
+            "property": "hidden",
+            "property_type": "Check",
+            "value": "0",
+            "doctype": "Property Setter"
+        },
+        {
+            "name": "Prospect-fax-hidden",
+            "doctype_or_field": "DocField",
+            "doc_type": "Prospect",
+            "field_name": "fax",
+            "property": "hidden",
+            "property_type": "Check",
+            "value": "1",
+            "doctype": "Property Setter"
+        },
     ]
 
     for setter in property_setters:
