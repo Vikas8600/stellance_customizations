@@ -149,6 +149,9 @@ doc_events = {
     "Compensatory Leave Request": {
         "on_submit": "stellance_customizations.overrides.compensatory_leave.set_compoff_leave_validity",
     },
+    "Employee Checkin": {
+        "before_insert": "stellance_customizations.overrides.employee_checkin.set_address_from_coordinates",
+    },
 }
 
 
