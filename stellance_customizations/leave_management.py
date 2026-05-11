@@ -17,16 +17,17 @@ def _next_month_start(d):
 	return getdate(add_months(date(d.year, d.month, 1), 1))
 
 
-def _window_to_date(window_start, carry_forward_months):
-	"""Last day of the carry_forward_months-th month from window_start's month.
+def _rolling_to_date(current_month_start, carry_forward_months, lp_to):
+	"""Last day of the (carry_forward_months)-th month from current_month, capped at lp_to.
 
-	e.g. window_start=Apr, months=6  →  Sep 30
-	     window_start=Oct, months=6  →  Mar 31
+	e.g. current_month=May 2026, months=6  →  Oct 31 2026
+	     current_month=Oct 2026, months=6  →  Mar 31 2027  (capped at lp_to)
 	"""
-	d = getdate(window_start)
+	d = getdate(current_month_start)
 	end_month = getdate(add_months(date(d.year, d.month, 1), carry_forward_months - 1))
 	_, last_day = _cal.monthrange(end_month.year, end_month.month)
-	return date(end_month.year, end_month.month, last_day)
+	computed = date(end_month.year, end_month.month, last_day)
+	return min(computed, getdate(lp_to))
 
 
 def _get_leave_period_dates(group_policy_name):
@@ -45,20 +46,19 @@ def _get_leave_type_flags():
 	return {r.name: r for r in rows}
 
 
-def _compute_window_leaves(policy, window_from, through_month, lt_flags):
-	"""Cumulative leaves accrued from window_from through through_month (inclusive).
-
-	window_from may be mid-month (joining date) — that month is pro-rated.
+def _compute_cumulative_leaves(policy, effective_start, current_month_start, lt_flags):
+	"""Total leaves accrued from effective_start through current_month (inclusive).
+	Joining month is pro-rated when effective_start is not the 1st.
 	"""
-	window_from = getdate(window_from)
-	joining_month_start = _month_start(window_from)
+	effective_start = getdate(effective_start)
+	joining_month_start = _month_start(effective_start)
 	totals = {}
 
 	alloc_month = joining_month_start
-	while alloc_month <= through_month:
+	while alloc_month <= current_month_start:
 		_, days_in_month = _cal.monthrange(alloc_month.year, alloc_month.month)
-		if alloc_month == joining_month_start and window_from.day != 1:
-			fraction = (days_in_month - window_from.day + 1) / days_in_month
+		if alloc_month == joining_month_start and effective_start.day != 1:
+			fraction = (days_in_month - effective_start.day + 1) / days_in_month
 		else:
 			fraction = 1.0
 
@@ -74,15 +74,24 @@ def _compute_window_leaves(policy, window_from, through_month, lt_flags):
 	return {lt: round(v, 2) for lt, v in totals.items()}
 
 
-def _upsert_window_allocation(employee_name, employee_display, policy, lt_flags,
-                              window_from, window_to, through_month):
-	"""Create or in-place update the Leave Allocation for one window.
+def _sync_rolling_allocation(employee_name, employee_display, policy, lt_flags,
+                             joining_date, lp_from, lp_to):
+	"""Maintain one Leave Allocation per leave type with a rolling to_date.
 
-	'through_month' is the last month to accrue (month_start date).
-	When through_month == window_to's month we accrue the full window;
-	for mid-window calls (monthly scheduler) we accrue only up to today's month.
+	Each month, new_leaves_allocated is incremented and to_date is pushed
+	forward to (current_month + carry_forward_months - 1), so May's leaves
+	expire in October, June's in November, etc.
 	"""
-	expected = _compute_window_leaves(policy, window_from, through_month, lt_flags)
+	today = getdate()
+	current_month_start = _month_start(today)
+	carry_forward_months = max(int(policy.carry_forward_months or 1), 1)
+
+	effective_start = max(getdate(joining_date), lp_from)
+	if _month_start(effective_start) > current_month_start:
+		return
+
+	new_to_date = _rolling_to_date(current_month_start, carry_forward_months, lp_to)
+	expected = _compute_cumulative_leaves(policy, effective_start, current_month_start, lt_flags)
 
 	for leave_type, expected_leaves in expected.items():
 		if expected_leaves <= 0:
@@ -90,32 +99,35 @@ def _upsert_window_allocation(employee_name, employee_display, policy, lt_flags,
 
 		flags = lt_flags.get(leave_type)
 
-		# Key: one allocation per (employee, leave_type, window_to)
-		existing = frappe.db.get_value(
-			"Leave Allocation",
-			{"employee": employee_name, "leave_type": leave_type,
-			 "docstatus": 1, "to_date": str(window_to)},
-			["name", "new_leaves_allocated", "unused_leaves"],
-			as_dict=True,
-		)
+		# One allocation per (employee, leave_type) within the leave period
+		existing = frappe.db.sql("""
+			SELECT name, new_leaves_allocated, unused_leaves, to_date
+			FROM `tabLeave Allocation`
+			WHERE employee=%s AND leave_type=%s AND docstatus=1
+			  AND from_date >= %s AND to_date <= %s
+			ORDER BY from_date DESC LIMIT 1
+		""", (employee_name, leave_type, str(lp_from), str(lp_to)), as_dict=True)
+		existing = existing[0] if existing else None
 
 		try:
 			if existing:
 				current_new = round(flt(existing.new_leaves_allocated), 2)
-				if abs(current_new - expected_leaves) < 0.01:
-					continue  # Already up to date
-				unused = flt(existing.unused_leaves)
-				frappe.db.set_value("Leave Allocation", existing.name, {
-					"new_leaves_allocated": expected_leaves,
-					"total_leaves_allocated": round(expected_leaves + unused, 2),
-				})
+				leaves_changed = abs(current_new - expected_leaves) >= 0.01
+				to_date_changed = getdate(existing.to_date) != new_to_date
+
+				if leaves_changed or to_date_changed:
+					unused = flt(existing.unused_leaves)
+					frappe.db.set_value("Leave Allocation", existing.name, {
+						"new_leaves_allocated": expected_leaves,
+						"total_leaves_allocated": round(expected_leaves + unused, 2),
+						"to_date": str(new_to_date),
+					})
 			else:
-				# Clean up any old allocations for this leave_type that would overlap
+				# Remove any old/stale allocations for this leave_type that would overlap
 				old_rows = frappe.db.sql("""
 					SELECT name, docstatus FROM `tabLeave Allocation`
 					WHERE employee=%s AND leave_type=%s AND docstatus != 2
-					  AND to_date != %s
-				""", (employee_name, leave_type, str(window_to)), as_dict=True)
+				""", (employee_name, leave_type), as_dict=True)
 				for old in old_rows:
 					try:
 						old_doc = frappe.get_doc("Leave Allocation", old.name)
@@ -131,8 +143,8 @@ def _upsert_window_allocation(employee_name, employee_display, policy, lt_flags,
 					"doctype": "Leave Allocation",
 					"employee": employee_name,
 					"leave_type": leave_type,
-					"from_date": str(window_from),
-					"to_date": str(window_to),
+					"from_date": str(effective_start),
+					"to_date": str(new_to_date),
 					"new_leaves_allocated": expected_leaves,
 					"carry_forward": 1 if flags and flags.is_carry_forward else 0,
 				})
@@ -144,49 +156,6 @@ def _upsert_window_allocation(employee_name, employee_display, policy, lt_flags,
 				frappe.get_traceback(),
 				f"Leave Allocation failed: {employee_display} – {leave_type}",
 			)
-
-
-def _sync_all_windows(employee_name, employee_display, policy, lt_flags,
-                      joining_date, lp_from, lp_to):
-	"""Process every window from joining → today.
-
-	For past windows:   accrue the full window (all carry_forward_months months).
-	For current window: accrue only up to the current month.
-	"""
-	today = getdate()
-	current_month_start = _month_start(today)
-	carry_forward_months = max(int(policy.carry_forward_months or 1), 1)
-
-	effective_start = max(getdate(joining_date), lp_from)
-	if _month_start(effective_start) > current_month_start:
-		return  # Hasn't started yet
-
-	window_from = effective_start
-
-	while True:
-		raw_window_to = _window_to_date(window_from, carry_forward_months)
-		window_to = min(raw_window_to, lp_to)
-		window_month_start = _month_start(window_from)
-
-		if window_month_start > current_month_start:
-			break  # Future window — nothing to do yet
-
-		# Accrue up to end of window OR current month, whichever is earlier
-		through_month = min(_month_start(window_to), current_month_start)
-
-		_upsert_window_allocation(
-			employee_name, employee_display, policy, lt_flags,
-			window_from, window_to, through_month,
-		)
-
-		if window_to >= lp_to:
-			break  # No more windows within the leave period
-
-		# Next window starts on the 1st of the month after window_to
-		next_start = _next_month_start(window_to)
-		if next_start > lp_to or next_start > today:
-			break
-		window_from = next_start
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +179,7 @@ def allocate_monthly_leaves():
 			continue
 
 		policy = frappe.get_doc("Leave Group Policy", emp.custom_leave_group_policy)
-		_sync_all_windows(
+		_sync_rolling_allocation(
 			emp.name, emp.employee_name, policy, lt_flags,
 			emp.date_of_joining, lp_from, lp_to,
 		)
@@ -240,7 +209,7 @@ def allocate_joining_month_leaves(employee):
 
 	lt_flags = _get_leave_type_flags()
 	policy = frappe.get_doc("Leave Group Policy", employee.custom_leave_group_policy)
-	_sync_all_windows(
+	_sync_rolling_allocation(
 		employee.name, employee.employee_name, policy, lt_flags,
 		employee.date_of_joining, lp_from, lp_to,
 	)
@@ -261,7 +230,7 @@ def backfill_leaves_from_joining(employee):
 
 	lt_flags = _get_leave_type_flags()
 	policy = frappe.get_doc("Leave Group Policy", employee.custom_leave_group_policy)
-	_sync_all_windows(
+	_sync_rolling_allocation(
 		employee.name, employee.employee_name, policy, lt_flags,
 		employee.date_of_joining, lp_from, lp_to,
 	)
