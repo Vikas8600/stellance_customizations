@@ -9,8 +9,9 @@ LEAD_FIELD_MAP = {
     "custom_designation":        "job_title",
     "custom_client_name":        "first_name",
     "custom_organization_name":  "company_name",
-    "custom_client_whatsapp_no": "custom_client_whatsapp_no",
-    "customer_group":            "custom_customer_group",
+    "custom_client_whatsapp_no":  "custom_client_whatsapp_no",
+    "custom_whatsapp_country_code": "custom_mobile_country_code",
+    "customer_group":             "custom_customer_group",
 }
 
 

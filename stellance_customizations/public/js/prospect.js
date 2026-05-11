@@ -131,8 +131,9 @@ const LEAD_TO_PROSPECT = {
 	job_title:               "custom_designation",
 	first_name:              "custom_client_name",
 	company_name:            "custom_organization_name",
-	custom_client_whatsapp_no: "custom_client_whatsapp_no",
-	custom_customer_group:   "customer_group",
+	custom_client_whatsapp_no:    "custom_client_whatsapp_no",
+	custom_mobile_country_code:   "custom_whatsapp_country_code",
+	custom_customer_group:        "customer_group",
 };
 
 frappe.ui.form.on("Prospect Lead", {
