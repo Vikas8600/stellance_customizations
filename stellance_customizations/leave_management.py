@@ -22,9 +22,10 @@ def get_fy_march_31(from_date):
 	return date(d.year + 1, 3, 31) if d.month >= 4 else date(d.year, 3, 31)
 
 
-def get_leave_expiry_date(from_date, carry_forward_months):
-	from_date = getdate(from_date)
-	return min(getdate(add_months(from_date, carry_forward_months)), get_fy_march_31(from_date))
+def get_leave_expiry_date(from_date):
+	d = getdate(from_date)
+	_, last_day = _cal.monthrange(d.year, d.month)
+	return date(d.year, d.month, last_day)
 
 
 def _get_leave_type_flags():
@@ -45,7 +46,7 @@ def _in_leave_period(group_policy_name, for_date):
 
 def _create_allocations(employee_name, employee_display, policy, from_date, lt_flags, fraction=1.0):
 	"""Create Leave Allocations for one month. fraction < 1 for pro-rated months."""
-	expiry_date = get_leave_expiry_date(from_date, policy.carry_forward_months)
+	expiry_date = get_leave_expiry_date(from_date)
 
 	for row in policy.leave_allocations:
 		flags = lt_flags.get(row.leave_type)
