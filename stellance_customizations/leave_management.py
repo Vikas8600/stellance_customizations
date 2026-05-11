@@ -1,6 +1,6 @@
 import calendar as _cal
 import frappe
-from frappe.utils import getdate, add_months, flt
+from frappe.utils import getdate, add_months
 from datetime import date
 
 
@@ -13,25 +13,17 @@ def _month_start(d):
 	return date(d.year, d.month, 1)
 
 
+def _month_end(d):
+	d = getdate(d)
+	_, last_day = _cal.monthrange(d.year, d.month)
+	return date(d.year, d.month, last_day)
+
+
 def _next_month_start(d):
 	return getdate(add_months(date(d.year, d.month, 1), 1))
 
 
-def _rolling_to_date(current_month_start, carry_forward_months, lp_to):
-	"""Last day of the (carry_forward_months)-th month from current_month, capped at lp_to.
-
-	e.g. current_month=May 2026, months=6  →  Oct 31 2026
-	     current_month=Oct 2026, months=6  →  Mar 31 2027  (capped at lp_to)
-	"""
-	d = getdate(current_month_start)
-	end_month = getdate(add_months(date(d.year, d.month, 1), carry_forward_months - 1))
-	_, last_day = _cal.monthrange(end_month.year, end_month.month)
-	computed = date(end_month.year, end_month.month, last_day)
-	return min(computed, getdate(lp_to))
-
-
 def _get_leave_period_dates(group_policy_name):
-	"""Return (lp_from, lp_to) for the policy's Leave Period, or (None, None)."""
 	leave_period = frappe.db.get_value("Leave Group Policy", group_policy_name, "leave_period")
 	if not leave_period:
 		return None, None
@@ -46,115 +38,47 @@ def _get_leave_type_flags():
 	return {r.name: r for r in rows}
 
 
-def _compute_cumulative_leaves(policy, effective_start, current_month_start, lt_flags):
-	"""Total leaves accrued from effective_start through current_month (inclusive).
-	Joining month is pro-rated when effective_start is not the 1st.
-	"""
-	effective_start = getdate(effective_start)
-	joining_month_start = _month_start(effective_start)
-	totals = {}
-
-	alloc_month = joining_month_start
-	while alloc_month <= current_month_start:
-		_, days_in_month = _cal.monthrange(alloc_month.year, alloc_month.month)
-		if alloc_month == joining_month_start and effective_start.day != 1:
-			fraction = (days_in_month - effective_start.day + 1) / days_in_month
-		else:
-			fraction = 1.0
-
-		for row in policy.leave_allocations:
-			flags = lt_flags.get(row.leave_type)
-			if not flags or flags.is_lwp or flags.is_compensatory:
-				continue
-			monthly_rate = row.leaves / 12 if row.allocation_type == "Yearly" else row.leaves
-			totals[row.leave_type] = totals.get(row.leave_type, 0.0) + monthly_rate * fraction
-
-		alloc_month = _next_month_start(alloc_month)
-
-	return {lt: round(v, 2) for lt, v in totals.items()}
+def _alloc_exists(employee_name, leave_type, from_date):
+	"""True if a non-cancelled allocation already exists for this employee+leave_type+from_date."""
+	return bool(frappe.db.exists(
+		"Leave Allocation",
+		{"employee": employee_name, "leave_type": leave_type,
+		 "from_date": str(from_date), "docstatus": ["!=", 2]},
+	))
 
 
-def _sync_rolling_allocation(employee_name, employee_display, policy, lt_flags,
-                             joining_date, lp_from, lp_to):
-	"""Maintain one Leave Allocation per leave type with a rolling to_date.
-
-	Each month, new_leaves_allocated is incremented and to_date is pushed
-	forward to (current_month + carry_forward_months - 1), so May's leaves
-	expire in October, June's in November, etc.
-	"""
-	today = getdate()
-	current_month_start = _month_start(today)
-	carry_forward_months = max(int(policy.carry_forward_months or 1), 1)
-
-	effective_start = max(getdate(joining_date), lp_from)
-	if _month_start(effective_start) > current_month_start:
-		return
-
-	new_to_date = _rolling_to_date(current_month_start, carry_forward_months, lp_to)
-	expected = _compute_cumulative_leaves(policy, effective_start, current_month_start, lt_flags)
-
-	for leave_type, expected_leaves in expected.items():
-		if expected_leaves <= 0:
+def _create_month_allocation(employee_name, employee_display, policy, lt_flags,
+                             from_date, to_date, fraction=1.0):
+	"""Create Leave Allocations for a single month. fraction < 1 for pro-rated joining month."""
+	for row in policy.leave_allocations:
+		flags = lt_flags.get(row.leave_type)
+		if not flags or flags.is_lwp or flags.is_compensatory:
 			continue
 
-		flags = lt_flags.get(leave_type)
+		if _alloc_exists(employee_name, row.leave_type, from_date):
+			continue
 
-		# One allocation per (employee, leave_type) within the leave period
-		existing = frappe.db.sql("""
-			SELECT name, new_leaves_allocated, unused_leaves, to_date
-			FROM `tabLeave Allocation`
-			WHERE employee=%s AND leave_type=%s AND docstatus=1
-			  AND from_date >= %s AND to_date <= %s
-			ORDER BY from_date DESC LIMIT 1
-		""", (employee_name, leave_type, str(lp_from), str(lp_to)), as_dict=True)
-		existing = existing[0] if existing else None
+		monthly_rate = row.leaves / 12 if row.allocation_type == "Yearly" else row.leaves
+		qty = round(monthly_rate * fraction, 2)
+		if qty <= 0:
+			continue
 
 		try:
-			if existing:
-				current_new = round(flt(existing.new_leaves_allocated), 2)
-				leaves_changed = abs(current_new - expected_leaves) >= 0.01
-				to_date_changed = getdate(existing.to_date) != new_to_date
-
-				if leaves_changed or to_date_changed:
-					unused = flt(existing.unused_leaves)
-					frappe.db.set_value("Leave Allocation", existing.name, {
-						"new_leaves_allocated": expected_leaves,
-						"total_leaves_allocated": round(expected_leaves + unused, 2),
-						"to_date": str(new_to_date),
-					})
-			else:
-				# Remove any old/stale allocations for this leave_type that would overlap
-				old_rows = frappe.db.sql("""
-					SELECT name, docstatus FROM `tabLeave Allocation`
-					WHERE employee=%s AND leave_type=%s AND docstatus != 2
-				""", (employee_name, leave_type), as_dict=True)
-				for old in old_rows:
-					try:
-						old_doc = frappe.get_doc("Leave Allocation", old.name)
-						if old_doc.docstatus == 1:
-							old_doc.cancel()
-						frappe.delete_doc("Leave Allocation", old.name,
-						                  ignore_permissions=True, force=True)
-					except Exception:
-						frappe.log_error(frappe.get_traceback(),
-						                 f"Cannot clean up old allocation {old.name}")
-
-				alloc = frappe.get_doc({
-					"doctype": "Leave Allocation",
-					"employee": employee_name,
-					"leave_type": leave_type,
-					"from_date": str(effective_start),
-					"to_date": str(new_to_date),
-					"new_leaves_allocated": expected_leaves,
-					"carry_forward": 1 if flags and flags.is_carry_forward else 0,
-				})
-				alloc.insert(ignore_permissions=True)
-				alloc.submit()
-
+			alloc = frappe.get_doc({
+				"doctype": "Leave Allocation",
+				"employee": employee_name,
+				"leave_type": row.leave_type,
+				"from_date": str(from_date),
+				"to_date": str(to_date),
+				"new_leaves_allocated": qty,
+				"carry_forward": 1 if flags.is_carry_forward else 0,
+			})
+			alloc.insert(ignore_permissions=True)
+			alloc.submit()
 		except Exception:
 			frappe.log_error(
 				frappe.get_traceback(),
-				f"Leave Allocation failed: {employee_display} – {leave_type}",
+				f"Leave Allocation failed: {employee_display} – {row.leave_type} – {from_date}",
 			)
 
 
@@ -163,6 +87,10 @@ def _sync_rolling_allocation(employee_name, employee_display, policy, lt_flags,
 # ---------------------------------------------------------------------------
 
 def allocate_monthly_leaves():
+	today = getdate()
+	current_month_start = _month_start(today)
+	current_month_end = _month_end(today)
+
 	employees = frappe.get_all(
 		"Employee",
 		filters={"status": "Active", "custom_leave_group_policy": ["is", "set"]},
@@ -177,11 +105,13 @@ def allocate_monthly_leaves():
 		lp_from, lp_to = _get_leave_period_dates(emp.custom_leave_group_policy)
 		if not lp_from or not lp_to:
 			continue
+		if not (lp_from <= current_month_start <= lp_to):
+			continue
 
 		policy = frappe.get_doc("Leave Group Policy", emp.custom_leave_group_policy)
-		_sync_rolling_allocation(
+		_create_month_allocation(
 			emp.name, emp.employee_name, policy, lt_flags,
-			emp.date_of_joining, lp_from, lp_to,
+			current_month_start, current_month_end,
 		)
 
 	frappe.db.commit()
@@ -207,17 +137,29 @@ def allocate_joining_month_leaves(employee):
 		)
 		return
 
+	joining_date = getdate(employee.date_of_joining)
+	today = getdate()
+
+	# Only allocate if joining month is the current month
+	if joining_date.month != today.month or joining_date.year != today.year:
+		return
+	if not (lp_from <= joining_date <= lp_to):
+		return
+
+	_, days_in_month = _cal.monthrange(joining_date.year, joining_date.month)
+	fraction = (days_in_month - joining_date.day + 1) / days_in_month if joining_date.day != 1 else 1.0
+
 	lt_flags = _get_leave_type_flags()
 	policy = frappe.get_doc("Leave Group Policy", employee.custom_leave_group_policy)
-	_sync_rolling_allocation(
+	_create_month_allocation(
 		employee.name, employee.employee_name, policy, lt_flags,
-		employee.date_of_joining, lp_from, lp_to,
+		joining_date, _month_end(joining_date), fraction,
 	)
 	frappe.db.commit()
 
 
 # ---------------------------------------------------------------------------
-# Backfill  (policy assigned late — covers joining month through today)
+# Backfill  (policy assigned late — covers joining month through current month)
 # ---------------------------------------------------------------------------
 
 def backfill_leaves_from_joining(employee):
@@ -228,9 +170,31 @@ def backfill_leaves_from_joining(employee):
 	if not lp_from or not lp_to:
 		return
 
+	joining_date = getdate(employee.date_of_joining)
+	today = getdate()
+	current_month_start = _month_start(today)
+	joining_month_start = _month_start(joining_date)
+
 	lt_flags = _get_leave_type_flags()
 	policy = frappe.get_doc("Leave Group Policy", employee.custom_leave_group_policy)
-	_sync_rolling_allocation(
-		employee.name, employee.employee_name, policy, lt_flags,
-		employee.date_of_joining, lp_from, lp_to,
-	)
+
+	alloc_month = joining_month_start
+	while alloc_month <= current_month_start:
+		if not (lp_from <= alloc_month <= lp_to):
+			alloc_month = _next_month_start(alloc_month)
+			continue
+
+		_, days_in_month = _cal.monthrange(alloc_month.year, alloc_month.month)
+
+		if alloc_month == joining_month_start and joining_date.day != 1:
+			from_date = joining_date
+			fraction = (days_in_month - joining_date.day + 1) / days_in_month
+		else:
+			from_date = alloc_month
+			fraction = 1.0
+
+		_create_month_allocation(
+			employee.name, employee.employee_name, policy, lt_flags,
+			from_date, _month_end(alloc_month), fraction,
+		)
+		alloc_month = _next_month_start(alloc_month)
