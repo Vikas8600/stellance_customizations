@@ -107,14 +107,16 @@ frappe.ui.form.on("Prospect", {
 			return { filters: { is_group: 1 } };
 		});
 
-		frm.set_query("custom_customer_subcategory", function () {
-			return {
-				filters: {
-					is_group: 0,
-					parent_customer_group: frm.doc.customer_group || "",
-				},
-			};
-		});
+		if (frm.fields_dict["custom_customer_subcategory"]) {
+			frm.set_query("custom_customer_subcategory", function () {
+				return {
+					filters: {
+						is_group: 0,
+						parent_customer_group: frm.doc.customer_group || "",
+					},
+				};
+			});
+		}
 	},
 
 	customer_group: function (frm) {
