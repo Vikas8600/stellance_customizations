@@ -81,6 +81,15 @@ def setup_lead_property_setters():
             "value": "1",
             "doctype": "Property Setter"
         },
+        {
+            "name": "Prospect-main-field_order",
+            "doctype_or_field": "DocType",
+            "doc_type": "Prospect",
+            "property": "field_order",
+            "property_type": "Data",
+            "value": "[\"overview_tab\", \"company_name\", \"custom_client_name\", \"custom_organization_name\", \"custom_client_whatsapp_no\", \"custom_designation\", \"customer_group\", \"custom_customer_subcategory\", \"no_of_employees\", \"annual_revenue\", \"column_break_4\", \"custom_lead_source\", \"custom_lead_type\", \"custom_request_type\", \"prospect_owner\", \"market_segment\", \"industry\", \"territory\", \"website\", \"company\", \"column_break_6\", \"contacts_tab\", \"address_and_contact_section\", \"column_break_16\", \"address_html\", \"column_break_18\", \"contact_html\", \"leads_section\", \"leads\", \"opportunities_tab\", \"opportunities\", \"activities_tab\", \"open_activities_html\", \"all_activities_section\", \"all_activities_html\", \"notes_section\", \"notes_html\", \"notes\"]",
+            "doctype": "Property Setter"
+        },
     ]
 
     for setter in property_setters:

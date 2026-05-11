@@ -152,6 +152,9 @@ doc_events = {
     "Employee Checkin": {
         "before_insert": "stellance_customizations.overrides.employee_checkin.set_address_from_coordinates",
     },
+    "Prospect": {
+        "before_save": "stellance_customizations.overrides.prospect.before_save",
+    },
 }
 
 
