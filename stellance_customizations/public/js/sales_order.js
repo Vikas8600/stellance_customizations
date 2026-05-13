@@ -202,6 +202,7 @@ function update_last_row_history(frm) {
                             attr1: "customer_name",
                             attr2: "material_name",
                             date: "transaction_date",
+                            defaultFilter1: ${JSON.stringify(frm.doc.customer_name || "")},
                             row: d => \`<tr><td><a href="/app/customer/\${encodeURIComponent(d.customer)}" target="_blank">\${d.customer_name}</a></td>
                                         <td>\${d.consignee_address || '-'}</td><td>\${frappe.datetime.str_to_user(d.transaction_date)}</td>
                                         <td>\${d.days_passed} days</td><td>\${d.material_name}</td><td>\${d.qty}</td><td>\${d.rate}</td>
@@ -212,6 +213,11 @@ function update_last_row_history(frm) {
                     Object.values(configs).forEach(cfg => {
                         cfg.page = 1;
                         cfg.perPage = parseInt(cfg.perPageSelect.value || "2");
+
+                        if (cfg.defaultFilter1) {
+                            const hasOption = Array.from(cfg.filter1.options).some(o => o.value === cfg.defaultFilter1);
+                            if (hasOption) cfg.filter1.value = cfg.defaultFilter1;
+                        }
 
                         const filterData = () => cfg.raw.filter(d => {
                             const v1 = d[cfg.attr1], v2 = d[cfg.attr2], date = d[cfg.date];
