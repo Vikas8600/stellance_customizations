@@ -99,6 +99,38 @@ function injectLeadPhoneCode(frm, fieldname, storedField) {
 	});
 }
 
+if (window.erpnext && erpnext.LeadController) {
+	erpnext.LeadController.prototype.make_prospect = function () {
+		const me = this;
+		frappe.model.with_doctype("Prospect", function () {
+			let prospect = frappe.model.get_new_doc("Prospect");
+			prospect.company_name = me.frm.doc.company_name;
+			prospect.no_of_employees = me.frm.doc.no_of_employees;
+			prospect.industry = me.frm.doc.industry;
+			prospect.market_segment = me.frm.doc.market_segment;
+			prospect.territory = me.frm.doc.territory;
+			prospect.fax = me.frm.doc.fax;
+			prospect.website = me.frm.doc.website;
+			prospect.prospect_owner = me.frm.doc.lead_owner;
+			prospect.notes = me.frm.doc.notes;
+
+			prospect.custom_client_name = me.frm.doc.lead_name;
+			prospect.custom_organization_name = me.frm.doc.company_name;
+			prospect.custom_client_whatsapp_no = me.frm.doc.custom_client_whatsapp_no;
+			prospect.custom_whatsapp_country_code = me.frm.doc.custom_mobile_country_code;
+			prospect.custom_designation = me.frm.doc.job_title;
+			prospect.customer_group = me.frm.doc.custom_customer_category;
+			prospect.custom_customer_subcategory = me.frm.doc.custom_customer_subcategory;
+			prospect.custom_lead_source = me.frm.doc.source;
+
+			let leads_row = frappe.model.add_child(prospect, "leads");
+			leads_row.lead = me.frm.doc.name;
+
+			frappe.set_route("Form", "Prospect", prospect.name);
+		});
+	};
+}
+
 frappe.ui.form.on("Lead", {
 	refresh: function (frm) {
 		if (frm.is_new() && !frm.doc.lead_owner) {
