@@ -31,6 +31,25 @@ function fetchGroupAndSubCategory(frm) {
 }
 
 frappe.ui.form.on('Opportunity', {
+    	refresh: function (frm) {
+		frm.set_query("custom_customer_category", function () {
+			return { filters: { is_group: 1 } };
+		});
+		if (frm.fields_dict["custom_customer_subcategory"]) {
+			frm.set_query("custom_customer_subcategory", function () {
+				return {
+					filters: {
+						is_group: 0,
+						parent_customer_group: frm.doc.custom_customer_category || "",
+					},
+				};
+			});
+		}
+	},
+	custom_customer_category: function (frm) {
+		frm.set_value("custom_customer_subcategory", "");
+	},
+
     party_name: function (frm) {
         fetchGroupAndSubCategory(frm);
     },
