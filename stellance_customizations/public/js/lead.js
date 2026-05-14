@@ -43,7 +43,12 @@ function injectLeadPhoneCode(frm, fieldname, storedField) {
 		</div>`
 	).join("");
 
-	const saved = frm.doc[storedField] || "";
+	const saved = frm.doc[storedField] || "+91";
+
+	if (!frm.doc[storedField]) {
+		frm.set_value(storedField, "+91");
+	}
+
 	const active = LEAD_COUNTRY_CODES.find((c) => c.code === saved);
 	const triggerLabel = active
 		? `${leadFlagImg(active.iso)}&nbsp;<span style="font-size:12px;">${active.code}</span>`
