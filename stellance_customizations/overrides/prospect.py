@@ -1,4 +1,39 @@
 import frappe
+from erpnext.crm.doctype.prospect.prospect import make_opportunity as _erpnext_make_opportunity
+
+
+PROSPECT_TO_OPPORTUNITY = {
+    # prospect field                  opportunity field
+    "customer_group":                 "custom_customer_category",
+    "custom_customer_subcategory":    "custom_customer_subcategory",
+    "custom_whatsapp_country_code":   "custom_whatsapp_country_code",
+    "custom_client_name":             "contact_person",
+    "custom_designation":             "job_title",
+}
+
+
+@frappe.whitelist()
+def make_opportunity(source_name, target_doc=None):
+    target = _erpnext_make_opportunity(source_name, target_doc)
+
+    fields = list(PROSPECT_TO_OPPORTUNITY.keys()) + ["custom_client_whatsapp_no"]
+    source = frappe.db.get_value(
+        "Prospect",
+        source_name,
+        fields,
+        as_dict=True,
+    ) or {}
+
+    for prospect_field, opportunity_field in PROSPECT_TO_OPPORTUNITY.items():
+        value = source.get(prospect_field)
+        if value:
+            target.set(opportunity_field, value)
+
+    whatsapp = source.get("custom_client_whatsapp_no")
+    if whatsapp:
+        target.contact_mobile = whatsapp
+
+    return target
 
 
 LEAD_FIELD_MAP = {

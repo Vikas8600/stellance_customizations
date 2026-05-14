@@ -200,6 +200,10 @@ scheduler_events = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "stellance_customizations.event.get_events"
 # }
+override_whitelisted_methods = {
+	"erpnext.crm.doctype.prospect.prospect.make_opportunity": "stellance_customizations.overrides.prospect.make_opportunity",
+	"erpnext.crm.doctype.lead.lead.make_opportunity": "stellance_customizations.overrides.lead.make_opportunity",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
