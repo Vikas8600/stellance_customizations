@@ -1,15 +1,3 @@
-frappe.ui.form.on('Quotation', {
-    refresh: function(frm) {
-        frm.fields_dict.custom_sales_history.$input.on('click', function() {
-            window.open('/app/query-report/Sales History', '_blank');
-        });
-        frm.fields_dict.custom_purchase_history.$input.on('click', function() {
-            window.open('/app/query-report/Purchase History', '_blank');
-        });
-    }
-});
-
-
 frappe.ui.form.on("Quotation", {
     refresh: function (frm) {
         frm.add_custom_button(
@@ -156,7 +144,10 @@ function update_last_row_history(frm) {
                     </div>
                 </div>`;
 
-            html += `<div style='margin-bottom: 10px; font-weight: 600;'>Purchase History</div>`;
+            html += `<div style='margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 10px;'>
+                <span>Purchase History</span>
+                <a href="/app/query-report/Purchase History" target="_blank" class="btn btn-xs btn-default"> Purchase History Report</a>
+            </div>`;
             html += generateFilterHTML("purchase", uniqueManufacturers, uniquePurchaseMaterials, "Manufacturer", "Material");
 
             html += `<table id="purchase-table" class="table table-bordered table-striped">
@@ -170,7 +161,10 @@ function update_last_row_history(frm) {
                     <button class="btn btn-sm btn-default" id="purchase-next">Next</button>
                 </div>`;
 
-            html += `<div style='margin-bottom: 10px; font-weight: 600;'>Sales History</div>`;
+            html += `<div style='margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 10px;'>
+                <span>Sales History</span>
+                <a href="/app/query-report/Sales History" target="_blank" class="btn btn-xs btn-default"> Sales History Report</a>
+            </div>`;
             html += generateFilterHTML("sales", uniqueClients, uniqueSalesMaterials, "Client", "Material");
 
             html += `<table id="sales-table" class="table table-bordered table-striped">
