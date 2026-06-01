@@ -280,6 +280,19 @@ function update_last_row_history(frm) {
 frappe.ui.form.on('Quotation', {
     refresh: function(frm) {
         update_last_row_history(frm);
+    },
+    custom_term: function(frm) {
+        if (!frm.doc.custom_term) {
+            frm.set_value('custom_terms_details', '');
+            return;
+        }
+
+        frappe.db.get_value('Terms and Conditions', frm.doc.custom_term, 'terms')
+            .then(r => {
+                if (r.message) {
+                    frm.set_value('custom_terms_details', r.message.terms || '');
+                }
+            });
     }
 });
 
