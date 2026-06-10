@@ -68,7 +68,7 @@ def setup_lead_property_setters():
             "field_name": "fax",
             "property": "hidden",
             "property_type": "Check",
-            "value": "0",
+            "value": "1",
             "doctype": "Property Setter"
         },
         {
