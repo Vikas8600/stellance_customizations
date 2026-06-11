@@ -2,8 +2,7 @@ frappe.ui.form.on('Purchase Receipt', {
 	refresh: function (frm) {
 	    if(frm.is_new()){
 	        frm.doc.items.forEach(item => {
-                item.custom_prev_quality = item.qty;  // Direct assignment without index
-                item.qty = 0;
+                item.custom_prev_quality = item.qty;  // remember the original PO qty
             });
             frm.refresh_field('items');
 	    }
