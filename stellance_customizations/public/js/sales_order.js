@@ -1,3 +1,59 @@
+const SALES_ORDER_COUNTRY_CODES = [
+	{ code: "+91",  iso: "in", name: "India" },
+	{ code: "+1",   iso: "us", name: "USA / Canada" },
+	{ code: "+44",  iso: "gb", name: "UK" },
+	{ code: "+61",  iso: "au", name: "Australia" },
+	{ code: "+971", iso: "ae", name: "UAE" },
+	{ code: "+966", iso: "sa", name: "Saudi Arabia" },
+	{ code: "+65",  iso: "sg", name: "Singapore" },
+	{ code: "+60",  iso: "my", name: "Malaysia" },
+	{ code: "+62",  iso: "id", name: "Indonesia" },
+	{ code: "+92",  iso: "pk", name: "Pakistan" },
+	{ code: "+880", iso: "bd", name: "Bangladesh" },
+	{ code: "+94",  iso: "lk", name: "Sri Lanka" },
+	{ code: "+977", iso: "np", name: "Nepal" },
+	{ code: "+49",  iso: "de", name: "Germany" },
+	{ code: "+33",  iso: "fr", name: "France" },
+	{ code: "+81",  iso: "jp", name: "Japan" },
+	{ code: "+86",  iso: "cn", name: "China" },
+	{ code: "+7",   iso: "ru", name: "Russia" },
+	{ code: "+55",  iso: "br", name: "Brazil" },
+	{ code: "+27",  iso: "za", name: "South Africa" },
+];
+
+function salesOrderFlagImg(iso) {
+	return `<img src="https://flagcdn.com/w20/${iso}.png" style="width:20px;height:auto;vertical-align:middle;border-radius:2px;">`;
+}
+
+// contact_mobile is read-only on Sales Order; show the country-code flag carried
+// over from the Quotation (custom_whatsapp_country_code) in front of the number.
+function showSalesOrderPhoneFlag(frm) {
+	const field = frm.fields_dict.contact_mobile;
+	if (!field) return false;
+
+	const entry = SALES_ORDER_COUNTRY_CODES.find((c) => c.code === frm.doc.custom_whatsapp_country_code);
+	if (!entry) return false;
+
+	// read-only fields render their value in the .control-value display area;
+	// only draw once the field actually has its number rendered.
+	const $value = field.$wrapper.find(".control-value");
+	if (!$value.length || !$value.text().trim()) return false;
+
+	$value.find(".phone-code-prefix").remove();
+	$value.prepend(
+		`<span class="phone-code-prefix" style="display:inline-flex;align-items:center;gap:4px;margin-right:6px;">
+			${salesOrderFlagImg(entry.iso)}<span style="font-size:12px;">${entry.code}</span>
+		</span>`
+	);
+	return true;
+}
+
+// The number is read-only inside the lazy "Address & Contact" tab and its display
+// area can be re-rendered after load, so retry a few times until the flag sticks.
+function scheduleSalesOrderPhoneFlag(frm) {
+	[0, 200, 600, 1200, 2000].forEach((delay) => setTimeout(() => showSalesOrderPhoneFlag(frm), delay));
+}
+
 frappe.ui.form.on('Sales Order', {
 	refresh: function(frm){
         update_status_options(frm)
@@ -5,6 +61,16 @@ frappe.ui.form.on('Sales Order', {
                 frappe.model.user_settings[frm.doctype] = r.message || r;
                 frm.fields_dict.items.grid.reset_grid();
               });
+
+        scheduleSalesOrderPhoneFlag(frm);
+
+        // re-draw the flag whenever the Address & Contact tab is opened
+        frm.$wrapper.off("click.phoneflag").on("click.phoneflag", ".form-tabs .nav-link, a.nav-link", function () {
+            scheduleSalesOrderPhoneFlag(frm);
+        });
+    },
+    contact_person: function(frm){
+        scheduleSalesOrderPhoneFlag(frm);
     }
 });
 
