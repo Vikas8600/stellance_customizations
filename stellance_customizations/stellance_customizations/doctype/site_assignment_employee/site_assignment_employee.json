@@ -13,8 +13,9 @@
   {
    "columns": 3,
    "fieldname": "employee",
-   "fieldtype": "Data",
-   "label": "Employee ID",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
    "reqd": 1,
    "in_list_view": 1
   },
@@ -23,7 +24,8 @@
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "label": "Employee Name",
-   "read_only": 1,
+   "fetch_from": "employee.employee_name",
+   "fetch_if_empty": 1,
    "in_list_view": 1
   },
   {
@@ -31,6 +33,7 @@
    "fieldname": "designation",
    "fieldtype": "Data",
    "label": "Designation",
+   "fetch_from": "employee.designation",
    "read_only": 1,
    "in_list_view": 1
   }

@@ -187,6 +187,9 @@ scheduler_events = {
 	"monthly": [
 		"stellance_customizations.leave_management.allocate_monthly_leaves"
 	],
+	"daily": [
+		"stellance_customizations.stellance_customizations.doctype.site_assignment.site_assignment.close_expired_assignments"
+	],
 }
 
 # Testing
