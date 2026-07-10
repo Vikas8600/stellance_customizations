@@ -3,6 +3,53 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import getdate, today
 
+# Employees eligible for a site roster are matched two ways:
+#   • by designation — Workers / Sub-contractor (real Designations on Employee)
+#   • by role        — their linked User carries the "Supervisor" role
+# "Supervisor" is a Role, not a Designation, so it is matched via Has Role rather
+# than Employee.designation. Designations are compared case-insensitively; spelling
+# variants (hyphen/space) are all listed so either form matches.
+ROSTER_DESIGNATIONS = ("workers", "sub-contractor", "sub contractor")
+SUPERVISOR_ROLE = "Supervisor"
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def roster_employee_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Link-field query for the Site Assignment employee dropdown.
+
+	Restricts to Active employees who either hold a site-roster designation
+	(Workers / Sub-contractor) or whose linked User has the "Supervisor" role.
+	"""
+	searchfield = searchfield or "name"
+	return frappe.db.sql(
+		"""
+		SELECT name, employee_name, designation
+		FROM `tabEmployee`
+		WHERE status = 'Active'
+		  AND (
+		        LOWER(COALESCE(designation, '')) IN %(desigs)s
+		        OR user_id IN (
+		            SELECT parent FROM `tabHas Role`
+		            WHERE role = %(sup_role)s AND parenttype = 'User'
+		        )
+		  )
+		  AND ({key} LIKE %(txt)s OR employee_name LIKE %(txt)s)
+		ORDER BY
+		  IF(LOCATE(%(_txt)s, name) > 0, LOCATE(%(_txt)s, name), 99999),
+		  employee_name ASC
+		LIMIT %(start)s, %(page_len)s
+		""".format(key=searchfield),
+		{
+			"desigs": ROSTER_DESIGNATIONS,
+			"sup_role": SUPERVISOR_ROLE,
+			"txt": f"%{txt}%",
+			"_txt": txt.replace("%", ""),
+			"start": start,
+			"page_len": page_len,
+		},
+	)
+
 
 class SiteAssignment(Document):
 	def validate(self):

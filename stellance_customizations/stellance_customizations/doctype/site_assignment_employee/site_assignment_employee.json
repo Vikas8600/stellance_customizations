@@ -25,7 +25,6 @@
    "fieldtype": "Data",
    "label": "Employee Name",
    "fetch_from": "employee.employee_name",
-   "fetch_if_empty": 1,
    "in_list_view": 1
   },
   {
