@@ -8,8 +8,13 @@
   "site_name",
   "address_line_1",
   "address_line_2",
+  "address_line_3",
+  "landmark",
   "city",
-  "state"
+  "district",
+  "pincode",
+  "state",
+  "country"
  ],
  "fields": [
   {
@@ -31,16 +36,42 @@
    "label": "Address Line 2"
   },
   {
+   "fieldname": "address_line_3",
+   "fieldtype": "Data",
+   "label": "Address Line 3"
+  },
+  {
+   "fieldname": "landmark",
+   "fieldtype": "Data",
+   "label": "Landmark"
+  },
+  {
    "fieldname": "city",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "City"
   },
   {
+   "fieldname": "district",
+   "fieldtype": "Data",
+   "label": "District"
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "PinCode"
+  },
+  {
    "fieldname": "state",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "State"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country"
   }
  ],
  "grid_page_length": 50,
