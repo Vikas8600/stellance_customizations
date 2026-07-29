@@ -1,5 +1,6 @@
 [
  {
+  "description": null,
   "docstatus": 0,
   "doctype": "Zone",
   "modified": "2025-05-20 11:34:11.441518",
@@ -7,6 +8,7 @@
   "zone_name": "Zone 2"
  },
  {
+  "description": null,
   "docstatus": 0,
   "doctype": "Zone",
   "modified": "2025-05-20 11:34:21.765551",
@@ -14,6 +16,7 @@
   "zone_name": "Zone 3"
  },
  {
+  "description": null,
   "docstatus": 0,
   "doctype": "Zone",
   "modified": "2025-05-20 11:33:56.385564",

@@ -145,6 +145,7 @@ doc_events = {
     "Employee": {
         "before_save": "stellance_customizations.overrides.employee.before_save",
         "on_update": "stellance_customizations.overrides.employee.after_save",
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
     },
     "Compensatory Leave Request": {
         "on_submit": "stellance_customizations.overrides.compensatory_leave.set_compoff_leave_validity",
@@ -154,6 +155,22 @@ doc_events = {
     },
     "Prospect": {
         "before_save": "stellance_customizations.overrides.prospect.before_save",
+    },
+    # 10-digit mobile-number validation (optional +91 allowed) on phone fields.
+    "Lead": {
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
+    },
+    "User": {
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
+    },
+    "Contact": {
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
+    },
+    "Address": {
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
+    },
+    "Opportunity": {
+        "validate": "stellance_customizations.overrides.phone_validation.validate_phone_fields",
     },
 }
 
