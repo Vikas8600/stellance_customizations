@@ -65,8 +65,11 @@ def _get_data(month, year, days_in_month):
 		LEFT JOIN `tabSite Assignment Employee` sae ON sae.employee = a.employee
 		LEFT JOIN `tabSite Assignment` sa
 			ON sa.name = sae.parent
-			AND sa.is_active = 1
-			AND sa.date = a.attendance_date
+			-- Attribute each attendance day to the assignment whose active window
+			-- covers it: from From Date (sa.date) onwards, up to To Date when set,
+			-- otherwise open-ended (assignment still running until it is closed).
+			AND a.attendance_date >= sa.date
+			AND (sa.to_date IS NULL OR a.attendance_date <= sa.to_date)
 		LEFT JOIN `tabProject` p ON p.name = sa.project
 		WHERE
 			{conditions}
