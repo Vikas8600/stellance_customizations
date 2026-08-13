@@ -4,9 +4,9 @@ from collections import defaultdict
 import frappe
 from frappe.utils import getdate
 
-SUPERVISOR_DESIGNATION = "site supervisor"
-WORKER_DESIGNATION    = "workers"
-CONTRACTOR_DESIGNATION = "sub-contractor"
+SUPERVISOR_DESIGNATIONS = {"site supervisor", "contract site supervisor", "jr site supervisor", "sr. site supervisor"}
+WORKER_DESIGNATIONS    = {"workers", "senior site engineer", "site engineer", "unskilled co-worker"}
+CONTRACTOR_DESIGNATIONS = {"sub-contractor", "assistant manager-contracts"}
 
 
 def execute(filters=None):
@@ -36,8 +36,8 @@ def _get_columns(days_in_month):
 			"width": 100,
 		})
 	columns += [
-		{"label": "Total O (Own)", "fieldname": "total_c", "fieldtype": "Int", "width": 90},
-		{"label": "Total C (Sub-Contract)", "fieldname": "total_w", "fieldtype": "Int", "width": 130},
+		{"label": "Total C (Sub-Contract)", "fieldname": "total_c", "fieldtype": "Int", "width": 130},
+		{"label": "Total O (Own)", "fieldname": "total_w", "fieldtype": "Int", "width": 90},
 		{"label": "Grand Total", "fieldname": "grand_total", "fieldtype": "Int", "width": 90},
 	]
 	return columns
@@ -59,7 +59,8 @@ def _get_data(month, year, days_in_month):
 			a.employee,
 			a.employee_name,
 			p.project_name AS site,
-			COALESCE(NULLIF(sae.designation, ''), e.designation, '') AS designation
+			COALESCE(NULLIF(sae.designation, ''), e.designation, '') AS designation,
+			e.custom_designation_type AS designation_type
 		FROM `tabAttendance` a
 		LEFT JOIN `tabEmployee` e ON e.name = a.employee
 		LEFT JOIN `tabSite Assignment Employee` sae ON sae.employee = a.employee
@@ -82,10 +83,11 @@ def _get_data(month, year, days_in_month):
 		as_dict=True,
 	)
 
-	# site → day → {supervisors: [names], supervisor_ids: set, worker_ids: set, contractor_ids: set}
+	# site → day → {supervisors/workers/contractors: [names], *_ids: set}
 	site_days = defaultdict(lambda: {d: {
 		"supervisors": [], "supervisor_ids": set(),
-		"worker_ids": set(), "contractor_ids": set(),
+		"workers": [], "worker_ids": set(),
+		"contractors": [], "contractor_ids": set(),
 	} for d in range(1, 32)})
 
 	for r in rows:
@@ -93,18 +95,25 @@ def _get_data(month, year, days_in_month):
 		day = getdate(r.attendance_date).day
 		bucket = site_days[site][day]
 		desig = (r.designation or "").lower()
+		dtype = (r.designation_type or "").strip().upper()
 		emp = r.employee
+		name = r.employee_name or emp or ""
 
-		if desig == SUPERVISOR_DESIGNATION:
-			name = r.employee_name or emp or ""
-			if emp not in bucket["supervisor_ids"]:
-				bucket["supervisor_ids"].add(emp)
-				if name:
-					bucket["supervisors"].append(name)
-		elif desig == WORKER_DESIGNATION:
-			bucket["worker_ids"].add(emp)
-		elif desig == CONTRACTOR_DESIGNATION:
-			bucket["contractor_ids"].add(emp)
+		# Employee.custom_designation_type wins when set; otherwise fall back to
+		# matching the free-text designation against the hardcoded lists below.
+		if dtype == "SUPERVISOR" or (not dtype and desig in SUPERVISOR_DESIGNATIONS):
+			ids, names = bucket["supervisor_ids"], bucket["supervisors"]
+		elif dtype == "WORKER" or (not dtype and desig in WORKER_DESIGNATIONS):
+			ids, names = bucket["worker_ids"], bucket["workers"]
+		elif dtype == "CONTRACTOR" or (not dtype and desig in CONTRACTOR_DESIGNATIONS):
+			ids, names = bucket["contractor_ids"], bucket["contractors"]
+		else:
+			continue
+
+		if emp not in ids:
+			ids.add(emp)
+			if name:
+				names.append(name)
 
 	# Daily totals: unique employees per day across all sites
 	daily_unique = defaultdict(lambda: {"supervisor_ids": set(), "worker_ids": set(), "contractor_ids": set()})
@@ -117,12 +126,14 @@ def _get_data(month, year, days_in_month):
 
 		for day in range(1, days_in_month + 1):
 			b = site_days[site][day]
-			sup = ", ".join(b["supervisors"])
-			s   = len(b["supervisor_ids"])
-			c   = len(b["contractor_ids"])
-			w   = len(b["worker_ids"])
+			s = len(b["supervisor_ids"])
+			c = len(b["contractor_ids"])
+			w = len(b["worker_ids"])
 
-			sup_row[f"d{day:02d}"]   = sup or ("—" if (c or w) else "")
+			# Priority for the name cell: Supervisor, then Own worker, then Sub-Contractor.
+			names = b["supervisors"] or b["workers"] or b["contractors"]
+
+			sup_row[f"d{day:02d}"]   = ", ".join(names)
 			count_row[f"d{day:02d}"] = f"S:{s} O:{w} C:{c}" if (s or c or w) else ""
 
 			count_row["total_c"] += c
